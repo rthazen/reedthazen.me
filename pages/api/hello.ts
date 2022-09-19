@@ -1,5 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 
-export default (_: NextApiRequest, res: NextApiResponse) => {
+type Data = {
+  text: string
+}
+
+export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
   res.status(200).json({ text: 'Hello' })
 }

@@ -21,7 +21,7 @@ export default function Home({
           <title>{siteTitle}</title>
         </Head>
         <section className={utilStyles.headingMd}>
-          <h1 className="text-3xl font-bold underline text-center">This is a WIP</h1>
+          <p className="text-3xl font-bold underline text-center">This is a WIP</p>
           <p>Interested in technologically progressive industries that support creativity, where I can contribute my education, professional experience and talents to drive the industry forward.</p>
           {/* <p>
             (This is a sample website - you’ll be building a site like this on{' '}

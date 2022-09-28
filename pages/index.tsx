@@ -5,6 +5,7 @@ import { getSortedPostsData } from '../lib/posts'
 import Link from 'next/link'
 import Date from '../components/date'
 import { GetStaticProps } from 'next'
+import Image from 'next/image'
 
 export default function Home({
   allPostsData
@@ -44,9 +45,9 @@ export default function Home({
             ))}
           </ul>
         </section>
-        <footer>
-          <p className="text-center">Built with next.js and tailwind.css</p>
-            <img src="/sunset.png" alt="Reed Hazen" className="logo" />
+        <footer className="text-center">
+          <p>Built with next.js and tailwind.css</p>
+          <Image src="/sunset.png" alt="Reed Hazen" className="logo" width={200} height={200} />
         </footer>
     </Layout>
   )

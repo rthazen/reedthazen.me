@@ -3,6 +3,10 @@ import Image from 'next/image'
 import styles from './layout.module.css'
 import utilStyles from '../styles/utils.module.css'
 import Link from 'next/link'
+import GitHubIcon from '@mui/icons-material/GitHub';
+import LinkedInIcon from '@mui/icons-material/LinkedIn';
+import TwitterIcon from '@mui/icons-material/Twitter';
+import EmailIcon from '@mui/icons-material/Email';
 
 const name = 'Reed Hazen'
 export const siteTitle = 'Next.js WIP Website'
@@ -77,6 +81,24 @@ export default function Layout({
           </Link>
         </div>
       )}
+      <footer className="text-center flex flex-col justify-center items-center">
+          <p>Built with next.js and tailwind.css</p>
+          <Image src="/sunset.png" alt="Reed Hazen" className="logo" width={200} height={200} />
+          <div className="flex-row">
+            <a href="https://github.com/rthazen" target="_blank">
+              <GitHubIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
+            </a>
+            <a href="https://www.linkedin.com/in/reed-hazen/" target="_blank">
+              <LinkedInIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
+            </a>
+            <a href="https://twitter.com/ReedHazen" target="_blank">
+              <TwitterIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
+            </a>
+            <a href="mailto:reedthazen@gmail.com">
+              <EmailIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
+            </a>
+          </div>
+      </footer>
     </div>
   )
 }

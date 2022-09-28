@@ -45,10 +45,6 @@ export default function Home({
             ))}
           </ul>
         </section>
-        <footer className="text-center">
-          <p>Built with next.js and tailwind.css</p>
-          <Image src="/sunset.png" alt="Reed Hazen" className="logo" width={200} height={200} />
-        </footer>
     </Layout>
   )
 }

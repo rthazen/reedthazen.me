@@ -71,6 +71,9 @@ export default function Layout({ children, home }: { children: React.ReactNode; 
                     <a href="mailto:reedthazen@gmail.com">
                         <EmailIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
                     </a>
+                    <a href="https://s3.us-west-2.amazonaws.com/reedthazen.me/resume/Reed+Hazen+Resume.pdf" color="primary">
+                        CV
+                    </a>
                 </div>
                 <a href="https://app.netlify.com/sites/reedthazen-test/deploys">
                     <img src="https://api.netlify.com/api/v1/badges/de38faac-ff43-4250-a70a-4cdd92db7340/deploy-status" alt="Netlify Status" />

@@ -71,7 +71,7 @@ export default function Layout({ children, home }: { children: React.ReactNode; 
                     <a href="mailto:reedthazen@gmail.com">
                         <EmailIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
                     </a>
-                    <a href="https://s3.us-west-2.amazonaws.com/reedthazen.me/resume/Reed+Hazen+Resume.pdf" color="primary">
+                    <a href="https://s3.us-west-2.amazonaws.com/reedthazen.me/resume/Reed+Hazen+Resume.pdf" color="primary" target="_blank">
                         CV
                     </a>
                 </div>

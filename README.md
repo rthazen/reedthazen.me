@@ -6,8 +6,8 @@ Portfolio/sandbox for me to work with
 
 This is a starter template for [Learn Next.js](https://nextjs.org/learn).
 
-Will need to build a new project: `npm run build`
+Will need to build a new project: `yarn build`
 
-then run `npm run dev` (`next dev`) to get a dev server with Fast Refresh enabled
+then run `yarn dev` (`next dev`) to get a dev server with Fast Refresh enabled
 
-`npm start` will start a dev server as well, but it will be whatever is in the build in the .next folder after running `npm run build`
+`yarn start` will start a dev server as well, but it will be whatever is in the build in the .next folder after running `yarn build`

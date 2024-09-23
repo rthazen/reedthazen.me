@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import styles from './Blog.module.css';
 import utilStyles from '../../styles/utils.module.css';

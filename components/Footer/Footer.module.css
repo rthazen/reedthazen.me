@@ -15,8 +15,8 @@
 
 .socialIcon {
     font-size: 3rem;
-    width: 3rem;
-    height: 3rem;
+    width: 3rem !important;
+    height: 3rem !important;
 
     &:hover {
         opacity: 0.5;

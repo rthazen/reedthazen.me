@@ -3,13 +3,11 @@ import Image from 'next/image';
 import styles from './layout.module.css';
 import utilStyles from '../styles/utils.module.css';
 import Link from 'next/link';
-import GitHubIcon from '@mui/icons-material/GitHub';
-import LinkedInIcon from '@mui/icons-material/LinkedIn';
-import TwitterIcon from '@mui/icons-material/Twitter';
-import EmailIcon from '@mui/icons-material/Email';
+import Header from './Header';
+import Footer from './Footer';
 
 const name = 'Reed Hazen';
-export const siteTitle = 'Next.js WIP Website';
+export const siteTitle = 'Reed Hazen WIP';
 
 export default function Layout({ children, home }: { children: React.ReactNode; home?: boolean }) {
     return (
@@ -29,27 +27,7 @@ export default function Layout({ children, home }: { children: React.ReactNode; 
                 <meta name="og:title" content={siteTitle} />
                 <meta name="twitter:card" content="summary_large_image" />
             </Head>
-            <header className={styles.header}>
-                {home ? (
-                    <>
-                        <Image priority src="/images/profile.jpg" className={utilStyles.borderCircle} height={144} width={144} alt={name} />
-                        <h1 className={utilStyles.heading2Xl}>{name}</h1>
-                    </>
-                ) : (
-                    <>
-                        <Link href="/">
-                            <a>
-                                <Image priority src="/images/profile.jpg" className={utilStyles.borderCircle} height={108} width={108} alt={name} />
-                            </a>
-                        </Link>
-                        <h2 className={utilStyles.headingLg}>
-                            <Link href="/">
-                                <a className={utilStyles.colorInherit}>{name}</a>
-                            </Link>
-                        </h2>
-                    </>
-                )}
-            </header>
+            <Header home={home} name={name} />
             <main>{children}</main>
             {!home && (
                 <div className={styles.backToHome}>
@@ -58,27 +36,7 @@ export default function Layout({ children, home }: { children: React.ReactNode; 
                     </Link>
                 </div>
             )}
-            <footer className="text-center flex flex-col justify-center items-center">
-                <p>Built with next.js and tailwind.css</p>
-                <Image src="/sunset.png" alt="Reed Hazen" className="logo" width={200} height={200} />
-                <div className="flex-row">
-                    <a href="https://github.com/rthazen" target="_blank">
-                        <GitHubIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
-                    </a>
-                    <a href="https://www.linkedin.com/in/reed-hazen/" target="_blank">
-                        <LinkedInIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
-                    </a>
-                    <a href="mailto:reedthazen@gmail.com">
-                        <EmailIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
-                    </a>
-                    <a href="https://s3.us-west-2.amazonaws.com/reedthazen.me/resume/Reed+Hazen+Resume.pdf" color="primary" target="_blank">
-                        CV
-                    </a>
-                </div>
-                <a href="https://app.netlify.com/sites/reedthazen-test/deploys">
-                    <img src="https://api.netlify.com/api/v1/badges/de38faac-ff43-4250-a70a-4cdd92db7340/deploy-status" alt="Netlify Status" />
-                </a>
-            </footer>
+            <Footer />
         </div>
     );
 }

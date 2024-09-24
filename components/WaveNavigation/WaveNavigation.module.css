@@ -1,0 +1,26 @@
+/* components/WaveNavigation.module.css */
+.wave {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(120deg, #003973 0%, #006994 30%, #00a8cc 60%, #c8ffff 100%);
+    /* Wave colors */
+    z-index: 100; /* Ensures it covers everything */
+}
+
+.navContainer {
+    width: 50%;
+}
+
+.navButtons {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.navButtons button.active {
+    color: #1976d2;
+}

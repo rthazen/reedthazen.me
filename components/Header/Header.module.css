@@ -1,5 +1,4 @@
 .header {
-    background: linear-gradient(135deg, #00dfff 0%, #00a8cc 40%, #006994 70%, #003973 100%);
     display: flex;
     flex-direction: row;
     align-items: center;

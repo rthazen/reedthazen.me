@@ -1,15 +1,15 @@
 import Head from 'next/head';
 import Image from 'next/image';
-import styles from './layout.module.css';
+import styles from './Layout.module.css';
 import utilStyles from '../styles/utils.module.css';
 import Link from 'next/link';
-import Header from './Header';
-import Footer from './Footer';
+import Header from '../Header';
+import Footer from '../Footer';
+import { siteTitle } from '../../constants/CONST';
 
 const name = 'Reed Hazen';
-export const siteTitle = 'Reed Hazen WIP';
 
-export default function Layout({ children, home }: { children: React.ReactNode; home?: boolean }) {
+const Layout = ({ children, home }: { children: React.ReactNode; home?: boolean }) => {
     return (
         <div className={styles.container}>
             <Head>
@@ -29,14 +29,10 @@ export default function Layout({ children, home }: { children: React.ReactNode; 
             </Head>
             <Header home={home} name={name} />
             <main>{children}</main>
-            {!home && (
-                <div className={styles.backToHome}>
-                    <Link href="/">
-                        <a>← Back to home</a>
-                    </Link>
-                </div>
-            )}
-            <Footer />
+
+            <Footer home={home} />
         </div>
     );
-}
+};
+
+export default Layout;

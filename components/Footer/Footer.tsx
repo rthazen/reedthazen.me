@@ -7,7 +7,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import ArticleIcon from '@mui/icons-material/Article';
 import Wrapper from '../Wrapper';
 
-const Footer = () => {
+const Footer = ({ home }) => {
     return (
         <footer className="text-center flex flex-col justify-center items-center w-full">
             <Wrapper direction="col">
@@ -26,10 +26,14 @@ const Footer = () => {
                         <ArticleIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
                     </a>
                 </div>
-                <a href="https://app.netlify.com/sites/reedthazen-test/deploys">
-                    <img src="https://api.netlify.com/api/v1/badges/de38faac-ff43-4250-a70a-4cdd92db7340/deploy-status" alt="Netlify Status" />
-                </a>
-                <p className={styles.note}>Built with next.js and tailwind.css</p>
+                {!home && (
+                    <>
+                        <a href="https://app.netlify.com/sites/reedthazen-test/deploys">
+                            <img src="https://api.netlify.com/api/v1/badges/de38faac-ff43-4250-a70a-4cdd92db7340/deploy-status" alt="Netlify Status" />
+                        </a>
+                        <p className={styles.note}>Built with next.js and tailwind.css</p>
+                    </>
+                )}
             </Wrapper>
         </footer>
     );

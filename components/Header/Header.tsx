@@ -3,6 +3,7 @@ import Link from 'next/link';
 import styles from './Header.module.css';
 import utilStyles from '../../styles/utils.module.css';
 import Wrapper from '../Wrapper';
+import WaveNavigation from '../WaveNavigation';
 
 const Header = ({ home, name }) => {
     return (
@@ -27,6 +28,7 @@ const Header = ({ home, name }) => {
                         </>
                     )}
                 </div>
+                <WaveNavigation />
             </Wrapper>
         </header>
     );

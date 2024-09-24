@@ -1,13 +1,8 @@
 import Head from 'next/head';
-import Image from 'next/image';
 import styles from './Layout.module.css';
-import utilStyles from '../styles/utils.module.css';
-import Link from 'next/link';
 import Header from '../Header';
 import Footer from '../Footer';
 import { siteTitle } from '../../constants/CONST';
-
-const name = 'Reed Hazen';
 
 const Layout = ({ children, home }: { children: React.ReactNode; home?: boolean }) => {
     return (
@@ -27,10 +22,10 @@ const Layout = ({ children, home }: { children: React.ReactNode; home?: boolean 
                 <meta name="og:title" content={siteTitle} />
                 <meta name="twitter:card" content="summary_large_image" />
             </Head>
-            <Header home={home} name={name} />
-            <main>{children}</main>
+            {!home && <Header home={home} />}
+            <main className={styles.main}>{children}</main>
 
-            <Footer home={home} />
+            {!home && <Footer home={home} />}
         </div>
     );
 };

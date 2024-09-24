@@ -1,0 +1,16 @@
+.icons {
+    width: 30%;
+    justify-content: space-between;
+    display: flex;
+    margin: 1rem 0;
+}
+
+.socialIcon {
+    font-size: 3rem;
+    width: 3rem !important;
+    height: 3rem !important;
+
+    &:hover {
+        opacity: 0.5;
+    }
+}

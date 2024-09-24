@@ -22,6 +22,9 @@ const Home = ({ home }) => {
                 <div className="flex justify-end w-full">
                     <SocialIcons />
                 </div>
+                <div className="flex justify-end w-full">
+                    <Image src="/sunset.png" alt="Reed Hazen" className={styles.logo} width={200} height={200} />
+                </div>
             </Wrapper>
         </div>
     );

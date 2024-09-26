@@ -55,7 +55,7 @@ export const jobData = [
         years: '2013 - 2022',
         skills: ['React', 'Javascript', 'JQuery', 'Java', 'REST', 'Responsive Design', 'HTML/CSS', 'Oracle', 'MySQL'],
         role: 'Software Engineer/ Delivery Lead',
-        note: 'Brand was absorbed into Beachbody On Demand',
+        note: 'Openfit was under the Beachbody umbrella',
         description:
             "Led a team of 16 developers and 7 QA in the maintenance of the Team Beachbody Brand's websites, the developers and QA were on-site, some are in Pittsburgh and some in India. Performed in an Agile development environment.  Built shakeology.com and maintained Beachbody On Demand."
     }

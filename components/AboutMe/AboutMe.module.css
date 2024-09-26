@@ -8,23 +8,18 @@
 .content {
     width: 100%;
     display: flex;
-    flex-direction: row;
 }
 
 .leftSide {
-    width: 50%;
     display: flex;
     align-items: center;
     flex-direction: column;
 }
 
 .copy {
-    margin: 1rem 0;
-    width: 90%;
 }
 
 .rightSide {
-    width: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -33,5 +28,4 @@
 
 .jobs {
     margin: 1rem 0;
-    width: 90%;
 }

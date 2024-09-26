@@ -13,6 +13,10 @@ module.exports = {
                 yellow: '#FDD54E',
                 whiteSand: '#f4f1c9',
                 blue: '#0070f3'
+            },
+            width: {
+                '9/10': '90%',
+                '8/10': '80%'
             }
         }
     },

@@ -10,15 +10,11 @@
 }
 
 .leftSide {
-    flex-direction: row;
-    display: flex;
-    align-items: center;
 }
 
 .headerImage {
     height: 10rem;
     width: 10rem;
-    margin-right: 2rem;
 }
 
 .personalInfo {

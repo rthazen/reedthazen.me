@@ -8,7 +8,7 @@ interface WrapperProps {
 
 const Wrapper: React.FC<WrapperProps> = ({ direction = 'row', children }) => {
     const flexDirectionClass = direction === 'row' ? 'flex-row' : 'flex-col';
-    return <div className={`flex ${flexDirectionClass} ${styles.wrapper}`}>{children}</div>;
+    return <div className={`w-9/10 md:w-8/10 ${flexDirectionClass} ${styles.wrapper}`}>{children}</div>;
 };
 
 export default Wrapper;

@@ -6,7 +6,7 @@ import ArticleIcon from '@mui/icons-material/Article';
 
 const SocialIcons = () => {
     return (
-        <div className={`flex-row ${styles.icons}`}>
+        <div className={`flex flex-row justify-between w-full 2xl:basis-1/3 xl:basis-1/3 lg:basis-1/2 md:basis-1/2 ${styles.icons}`}>
             <a href="https://github.com/rthazen" target="_blank">
                 <GitHubIcon fontSize="inherit" className={`fill-pink ${styles.socialIcon}`} />
             </a>

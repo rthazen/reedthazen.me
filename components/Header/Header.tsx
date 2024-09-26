@@ -8,23 +8,25 @@ import { name } from '../../constants/CONST';
 
 const Header = ({ home, showProfile }) => {
     return (
-        <header className={styles.header}>
+        <header className={`mb-0 py-8 lg:mb-4 ${styles.header}`}>
             <Wrapper>
-                <div className="flex justify-start items-center w-full">
-                    <Link href="/">
-                        {showProfile ? (
-                            <Image priority src="/images/profile.jpg" className={`${utilStyles.borderCircle} ${styles.headerImage}`} height={108} width={108} alt={name} />
-                        ) : (
-                            <Image priority src="/sunset.png" className={`${utilStyles.borderCircle} ${styles.headerImage}`} height={108} width={108} alt={name} />
-                        )}
-                    </Link>
-                    {/* <h2 className={utilStyles.headingLg}>
+                <div className="flex flex-col items-center lg:flex-row w-full">
+                    <div className="flex justify-center lg:justify-start items-center w-full mb-8 lg:mb-0">
+                        <Link href="/">
+                            {showProfile ? (
+                                <Image priority src="/images/profile.jpg" className={`mr-0 lg:mr-8 ${utilStyles.borderCircle} ${styles.headerImage}`} height={108} width={108} alt={name} />
+                            ) : (
+                                <Image priority src="/sunset.png" className={`${utilStyles.borderCircle} ${styles.headerImage}`} height={108} width={108} alt={name} />
+                            )}
+                        </Link>
+                        {/* <h2 className={utilStyles.headingLg}>
                                 <Link href="/" className={utilStyles.colorInherit}>
                                     {name}
                                 </Link>
                             </h2> */}
+                    </div>
+                    <WaveNavigation />
                 </div>
-                <WaveNavigation />
             </Wrapper>
         </header>
     );

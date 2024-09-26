@@ -21,6 +21,7 @@ const Layout = ({ children, home, showProfile }: { children: React.ReactNode; ho
                 />
                 <meta name="og:title" content={siteTitle} />
                 <meta name="twitter:card" content="summary_large_image" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0"></meta>
             </Head>
             {!home && <Header home={home} showProfile={showProfile} />}
             <main className={styles.main}>{children}</main>

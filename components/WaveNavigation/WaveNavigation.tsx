@@ -30,7 +30,7 @@ const WaveNavigation = () => {
     };
 
     return (
-        <div className={styles.navContainer}>
+        <div className={`mb-8 lg:mb-0 w-full lg:w-3/4 ${styles.navContainer}`}>
             <nav className={styles.navButtons}>
                 <button onClick={(e) => handleNavigation(e, '/')} className={router.pathname === '/' ? styles.active : ''}>
                     Home

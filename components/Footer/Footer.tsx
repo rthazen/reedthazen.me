@@ -13,15 +13,17 @@ const Footer = ({ home }) => {
         <footer className="text-center flex flex-col justify-center items-center w-full mt-8">
             <Wrapper direction="col">
                 {/* <Image src="/sunset.png" alt="Reed Hazen" className={styles.logo} width={200} height={200} /> */}
-                <SocialIcons />
-                {!home && (
-                    <>
-                        <a href="https://app.netlify.com/sites/reedthazen-test/deploys">
-                            <img src="https://api.netlify.com/api/v1/badges/de38faac-ff43-4250-a70a-4cdd92db7340/deploy-status" alt="Netlify Status" />
-                        </a>
-                        <p className={styles.note}>Built with next.js and tailwind.css</p>
-                    </>
-                )}
+                <div className="flex flex-col justify-between lg:justify-center md:justify-center items-center sm:justify-between w-full lg:w-1/2">
+                    <SocialIcons />
+                    {!home && (
+                        <>
+                            <a href="https://app.netlify.com/sites/reedthazen-test/deploys">
+                                <img src="https://api.netlify.com/api/v1/badges/de38faac-ff43-4250-a70a-4cdd92db7340/deploy-status" alt="Netlify Status" />
+                            </a>
+                            <p className={styles.note}>Built with next.js and tailwind.css</p>
+                        </>
+                    )}
+                </div>
             </Wrapper>
         </footer>
     );

@@ -17,7 +17,7 @@ const Cursor = () => {
         };
     }, []);
 
-    return <div className={styles.cursor} style={{ transform: `translate3d(${position.x - 25}px, ${position.y - 25}px, 0)` }} />;
+    return <div className={styles.cursor} style={{ transform: `translate3d(${position.x}px, ${position.y}px, 0)` }} />;
 };
 
 export default Cursor;

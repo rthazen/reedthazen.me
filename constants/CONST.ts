@@ -21,7 +21,7 @@ export const jobData = [
         role: 'Senior Web Developer',
         note: 'Won an Emmy and a Webby!',
         description:
-            'Spearheaded the creation and delivery of MILE’s (Massive Interactive Live Events), a groundbreaking form of entertainment. Notably, led the development efforts for the inaugural project, Silent Hill Ascension.'
+            "Spearheaded the creation and delivery of MILE's (Massive Interactive Live Events), a groundbreaking form of entertainment. Notably, led the development efforts for the inaugural project, Silent Hill Ascension."
     },
     {
         company: 'LVLD',

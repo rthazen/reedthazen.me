@@ -1,4 +1,3 @@
-// components/Cursor.js
 import { useEffect, useState } from 'react';
 import styles from './Cursor.module.css';
 
@@ -7,7 +6,8 @@ const Cursor = () => {
 
     useEffect(() => {
         const handleMouseMove = (e) => {
-            setPosition({ x: e.clientX, y: e.clientY });
+            // Use pageX and pageY to account for scrolling
+            setPosition({ x: e.pageX, y: e.pageY });
         };
 
         window.addEventListener('mousemove', handleMouseMove);

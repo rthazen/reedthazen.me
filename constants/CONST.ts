@@ -1,6 +1,6 @@
 export const name = 'Reed Hazen';
 
-export const siteTitle = 'Reed Hazen WIP';
+export const siteTitle = 'Reed Hazen Senior Frontend Engineer';
 
 export const jobTitle = 'Senior Frontend Engineer';
 

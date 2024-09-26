@@ -9,7 +9,8 @@ body {
     font-family: 'Inter', sans-serif;
     line-height: 1.6;
     font-size: 18px;
-    background: #ede0cb;
+    background: #3b3b3b;
+    color: #f4f1c9;
 }
 
 * {
@@ -17,7 +18,7 @@ body {
 }
 
 a {
-    color: #0070f3;
+    color: #fb2394;
     text-decoration: none;
 }
 
@@ -29,3 +30,9 @@ img {
     max-width: 100%;
     display: block;
 }
+
+/* // white sand: #f4f1c9
+// blue link: #0070f3
+// dark sand: #967117
+// yellow in logo: #FDD54E
+// pink in logo: #FB2394 */

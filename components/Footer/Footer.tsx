@@ -10,7 +10,7 @@ import SocialIcons from '../SocialIcons';
 
 const Footer = ({ home }) => {
     return (
-        <footer className="text-center flex flex-col justify-center items-center w-full">
+        <footer className="text-center flex flex-col justify-center items-center w-full mt-8">
             <Wrapper direction="col">
                 {/* <Image src="/sunset.png" alt="Reed Hazen" className={styles.logo} width={200} height={200} /> */}
                 <SocialIcons />

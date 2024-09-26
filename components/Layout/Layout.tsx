@@ -4,7 +4,7 @@ import Header from '../Header';
 import Footer from '../Footer';
 import { siteTitle } from '../../constants/CONST';
 
-const Layout = ({ children, home }: { children: React.ReactNode; home?: boolean }) => {
+const Layout = ({ children, home, showProfile }: { children: React.ReactNode; home?: boolean; showProfile?: boolean }) => {
     return (
         <div className={styles.container}>
             <Head>
@@ -22,7 +22,7 @@ const Layout = ({ children, home }: { children: React.ReactNode; home?: boolean 
                 <meta name="og:title" content={siteTitle} />
                 <meta name="twitter:card" content="summary_large_image" />
             </Head>
-            {!home && <Header home={home} />}
+            {!home && <Header home={home} showProfile={showProfile} />}
             <main className={styles.main}>{children}</main>
 
             {!home && <Footer home={home} />}

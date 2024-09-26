@@ -8,16 +8,16 @@ const SocialIcons = () => {
     return (
         <div className={`flex-row ${styles.icons}`}>
             <a href="https://github.com/rthazen" target="_blank">
-                <GitHubIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
+                <GitHubIcon fontSize="inherit" className={`fill-pink ${styles.socialIcon}`} />
             </a>
             <a href="https://www.linkedin.com/in/reed-hazen/" target="_blank">
-                <LinkedInIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
+                <LinkedInIcon fontSize="inherit" className={`fill-pink ${styles.socialIcon}`} />
             </a>
             <a href="mailto:reedthazen@gmail.com">
-                <EmailIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
+                <EmailIcon fontSize="inherit" className={`fill-pink ${styles.socialIcon}`} />
             </a>
             <a href="https://s3.us-west-2.amazonaws.com/reedthazen.me/resume/Reed+Hazen+Resume.pdf" target="_blank">
-                <ArticleIcon fontSize="inherit" className={styles.socialIcon} color="primary" />
+                <ArticleIcon fontSize="inherit" className={`fill-pink ${styles.socialIcon}`} />
             </a>
         </div>
     );

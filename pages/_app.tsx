@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import '../styles/global.css';
 import { AppProps } from 'next/app';
 import WaveNavigation from '../components/WaveNavigation';
+import Cursor from '../components/Cursor';
 
 function App({ Component, pageProps }: AppProps) {
     const router = useRouter();
@@ -16,6 +17,7 @@ function App({ Component, pageProps }: AppProps) {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
             >
+                <Cursor />
                 <Component key={router.asPath} {...pageProps} />
             </motion.div>
         </AnimatePresence>

@@ -1,11 +1,11 @@
 import Layout from '../components/Layout';
 import { siteTitle } from '../constants/CONST';
-import AboutMe from '../components/AboutMe';
+import Projects from '../components/Projects';
 
 const ProjectsPage = () => {
     return (
         <Layout>
-            <AboutMe />
+            <Projects />
         </Layout>
     );
 };

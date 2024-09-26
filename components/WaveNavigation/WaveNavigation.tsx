@@ -38,9 +38,9 @@ const WaveNavigation = () => {
                 <button onClick={(e) => handleNavigation(e, '/about')} className={router.pathname === '/about' ? styles.active : ''}>
                     About
                 </button>
-                <button onClick={(e) => handleNavigation(e, '/projects')} className={router.pathname === '/projects' ? styles.active : ''}>
+                {/* <button onClick={(e) => handleNavigation(e, '/projects')} className={router.pathname === '/projects' ? styles.active : ''}>
                     Projects
-                </button>
+                </button> */}
                 <button onClick={(e) => handleNavigation(e, '/blog')} className={router.pathname === '/blog' ? styles.active : ''}>
                     Blog
                 </button>

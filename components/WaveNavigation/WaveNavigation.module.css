@@ -21,6 +21,15 @@
     width: 100%;
 }
 
+.navButtons button {
+    transition: color 0.3s ease, transform 0.3s ease; /* Smooth transition */
+}
+
 .navButtons button.active {
-    color: #1976d2;
+    color: #fb2394;
+}
+
+.navButtons button:hover {
+    color: #fb2394; /* Color change on hover */
+    transform: scale(1.1); /* Slightly increase the size */
 }

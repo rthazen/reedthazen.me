@@ -1,4 +1,6 @@
 import styles from './JobCard.module.css';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import BuildIcon from '@mui/icons-material/Build';
 
 const JobCard = ({ job }) => {
     const handleCardClick = (url) => {
@@ -13,12 +15,13 @@ const JobCard = ({ job }) => {
                 </div>
                 <div className={styles.rightSide}>
                     <div className={styles.top}>
-                        {job.role} - {job.company}
+                        {job.role} - {job.company} <OpenInNewIcon className={styles.companyIcon} />
                     </div>
                     <div className={styles.description}>{job.description}</div>
                     <div className={styles.projects}>
                         {job.projects.map((project, index) => (
                             <a href={project.url} target="_blank" key={index} onClick={(e) => e.stopPropagation()}>
+                                <BuildIcon className={styles.projectIcon} />
                                 {project.name}
                             </a>
                         ))}

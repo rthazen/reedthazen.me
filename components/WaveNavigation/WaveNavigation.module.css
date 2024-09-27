@@ -25,10 +25,10 @@
 }
 
 .navButtons button.active {
-    color: #fb2394;
+    color: var(--pink);
 }
 
 .navButtons button:hover {
-    color: #fb2394; /* Color change on hover */
+    color: var(--pink); /* Color change on hover */
     transform: scale(1.1); /* Slightly increase the size */
 }

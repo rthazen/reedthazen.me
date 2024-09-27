@@ -1,9 +1,12 @@
 .parentLink {
     cursor: pointer;
+    border-radius: 0.5rem;
+    transition: background-color 0.3s ease;
 }
 
 .parentLink:hover {
     text-decoration: none;
+    background-color: rgba(253, 213, 78, 0.1);
 }
 
 .container {
@@ -11,11 +14,9 @@
     flex-direction: row;
     padding: 0.6rem;
     margin-bottom: 1rem;
-    border-radius: 0.5rem;
 }
 
-.container:hover {
-    background-color: rgba(253, 213, 78, 0.1);
+.container {
 }
 
 .leftSide {
@@ -24,7 +25,6 @@
 
 .years {
     font-size: 0.8rem;
-    color: #f4f1c9;
 }
 
 .rightSide {
@@ -36,11 +36,18 @@
 .top {
     font-size: 1rem;
     font-weight: bold;
-    color: #fb2394;
+    color: var(--pink);
+    display: flex;
+    align-items: center;
+}
+
+.companyIcon {
+    width: 0.7rem;
+    height: 0.7rem;
+    margin-left: 0.2rem;
 }
 
 .description {
-    color: #f4f1c9;
     font-size: 0.8rem;
 }
 
@@ -52,6 +59,15 @@
 
 .projects a {
     font-size: 0.8rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.projectIcon {
+    width: 0.7rem;
+    height: 0.7rem;
+    margin-right: 0.2rem;
 }
 
 .skills {
@@ -62,14 +78,14 @@
 
 .skills div {
     padding: 0.5rem;
-    background-color: blue;
+    background-color: var(--aqua);
+    color: var(--lavaSand);
     font-size: 0.8rem;
-    border-radius: 50%;
+    border-radius: 1rem;
     margin: 0.5rem;
 }
 
 .note {
-    color: #f4f1c9;
     font-size: 0.8rem;
     font-style: italic;
 }

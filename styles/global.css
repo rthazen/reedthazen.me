@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+    --darkSand: #967117;
+    --whiteSand: #f4f1c9;
+    --yellow: #fdd54e;
+    --pink: #fb2394;
+    --darkerAqua: #00dbff;
+    --aqua: #00ffff;
+    --lavaSand: #3b3b3b;
+}
+
 html,
 body {
     padding: 0;
@@ -9,8 +19,8 @@ body {
     font-family: 'Inter', sans-serif;
     line-height: 1.6;
     font-size: 18px;
-    background: #3b3b3b;
-    color: #f4f1c9;
+    background: var(--lavaSand);
+    color: var(--whiteSand);
 }
 
 * {
@@ -18,7 +28,7 @@ body {
 }
 
 a {
-    color: #fb2394;
+    color: var(--pink);
     text-decoration: none;
 }
 
@@ -35,4 +45,7 @@ img {
 // blue link: #0070f3
 // dark sand: #967117
 // yellow in logo: #FDD54E
-// pink in logo: #FB2394 */
+// pink in logo: #FB2394 
+dark aqua: #00DBFF
+aqua: #00FFFF
+*/

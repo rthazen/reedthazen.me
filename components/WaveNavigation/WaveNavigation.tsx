@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/router';
 import styles from './WaveNavigation.module.css';
@@ -7,7 +7,7 @@ const WaveNavigation = () => {
     const [isAnimating, setIsAnimating] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const router = useRouter();
-    const mobileMenuRef = useRef(null); // Create a ref for the mobile menu
+    const mobileMenuRef = useRef(null);
 
     const handleNavigation = (e, href) => {
         e.preventDefault();
@@ -30,10 +30,9 @@ const WaveNavigation = () => {
     };
 
     const toggleMobileMenu = () => {
-        setIsMobileMenuOpen(!isMobileMenuOpen);
+        setIsMobileMenuOpen((prev) => !prev);
     };
 
-    // Close the menu when clicking outside of it
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
@@ -48,10 +47,10 @@ const WaveNavigation = () => {
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, []);
+    }, [isMobileMenuOpen]);
 
     return (
-        <div className={`w-full lg:w-3/4 ${styles.navContainer}`}>
+        <div ref={mobileMenuRef} className={`w-full lg:w-3/4 ${styles.navContainer}`}>
             {/* Hamburger Icon for Mobile */}
             <button className={styles.hamburger} onClick={toggleMobileMenu} aria-expanded={isMobileMenuOpen} aria-label="Toggle navigation menu">
                 <span className={isMobileMenuOpen ? styles.hamburgerOpen : ''}></span>
@@ -60,10 +59,7 @@ const WaveNavigation = () => {
             </button>
 
             {/* Regular Navigation */}
-            <nav
-                ref={mobileMenuRef} // Attach the ref to the mobile menu
-                className={`${styles.navButtons} ${styles.mobileMenu} ${isMobileMenuOpen ? styles.mobileMenuOpen : ''}`}
-            >
+            <nav className={`${styles.navButtons} ${styles.mobileMenu} ${isMobileMenuOpen ? styles.mobileMenuOpen : ''}`}>
                 <button onClick={(e) => handleNavigation(e, '/')} className={router.pathname === '/' ? styles.active : ''}>
                     Home
                 </button>

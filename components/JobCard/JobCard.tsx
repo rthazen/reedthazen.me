@@ -15,7 +15,7 @@ const JobCard = ({ job }) => {
                 </div>
                 <div className={styles.rightSide}>
                     <div className={styles.top}>
-                        {job.role} - {job.company} <OpenInNewIcon className={styles.companyIcon} />
+                        {job.role} - {job.company} <OpenInNewIcon className={styles.companyIcon} height="0.7rem" witdth="0.7rem" />
                     </div>
                     <div className={styles.description}>{job.description}</div>
                     <div className={styles.projects}>

@@ -18,9 +18,41 @@ body {
     margin: 0;
     font-family: 'Inter', sans-serif;
     line-height: 1.6;
-    font-size: 18px;
     background: var(--lavaSand);
     color: var(--whiteSand);
+}
+
+/* Base font size for mobile devices */
+html {
+    font-size: 14px; /* Default for small screens */
+}
+
+/* Medium screens (768px and up) */
+@media (min-width: 768px) {
+    html {
+        font-size: 14px; /* 1rem = 14px */
+    }
+}
+
+/* Large screens (1024px and up) */
+@media (min-width: 1024px) {
+    html {
+        font-size: 16px; /* 1rem = 16px */
+    }
+}
+
+/* Extra large screens (1280px and up) */
+@media (min-width: 1280px) {
+    html {
+        font-size: 18px; /* 1rem = 18px */
+    }
+}
+
+/* 2XL screens (1536px and up) */
+@media (min-width: 1536px) {
+    html {
+        font-size: 20px; /* 1rem = 20px */
+    }
 }
 
 * {

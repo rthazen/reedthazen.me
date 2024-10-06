@@ -24,8 +24,8 @@ const AboutMe = () => {
                     </div>
                     <div className={`w-full md:basis-1/2 ${styles.rightSide}`}>
                         <div className={`w-full md:w-9/10 ${styles.jobs}`}>
-                            {jobData.map((job) => (
-                                <JobCard job={job} />
+                            {jobData.map((job, index) => (
+                                <JobCard job={job} key={index} />
                             ))}
                         </div>
                     </div>

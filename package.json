@@ -3,7 +3,8 @@
     "scripts": {
         "dev": "next dev",
         "build": "next build",
-        "start": "next start"
+        "start": "next start",
+        "create:component": "node createComponent.js"
     },
     "dependencies": {
         "@emotion/cache": "^11.13.1",

@@ -6,6 +6,7 @@ import utilStyles from '../../styles/utils.module.css';
 import styles from '../../components/Layout/Layout.module.css';
 import Link from 'next/link';
 import { GetStaticProps, GetStaticPaths } from 'next';
+import Wrapper from '../../components/Wrapper';
 
 export default function Post({
     postData
@@ -21,16 +22,20 @@ export default function Post({
             <Head>
                 <title>{postData.title}</title>
             </Head>
-            <article>
-                <h1 className={utilStyles.headingXl}>{postData.title}</h1>
-                <div className={utilStyles.lightText}>
-                    <Date dateString={postData.date} />
-                </div>
-                <div dangerouslySetInnerHTML={{ __html: postData.contentHtml }} />
-            </article>
-            <div className={styles.backToHome}>
-                <Link href="/">← Back to home</Link>
-            </div>
+            <section className={`${utilStyles.headingMd} ${utilStyles.section}`}>
+                <Wrapper direction="col">
+                    <article>
+                        <h1 className={utilStyles.headingXl}>{postData.title}</h1>
+                        <div className={utilStyles.lightText}>
+                            <Date dateString={postData.date} />
+                        </div>
+                        <div dangerouslySetInnerHTML={{ __html: postData.contentHtml }} className="list-disc" />
+                    </article>
+                    <div className={styles.backToHome}>
+                        <Link href="/">← Back to home</Link>
+                    </div>
+                </Wrapper>
+            </section>
         </Layout>
     );
 }

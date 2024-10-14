@@ -67,62 +67,62 @@ export const testimonialData = [
         testimonial:
             "It was an absolute privilege to work alongside Reed. As a frontend engineer, Reed is exceptionally skilled, effortlessly navigating through complex requirements for both desktop and mobile platforms. He was also collaborating with our design team a lot, enhancing the overall quality of our product. During our challenging times, Reed's super calm attitude and swift response to dynamic situations were incredibly reassuring. I was so glad that we had him as our teammate. I am grateful for the opportunity to have worked alongside Reed and would eagerly welcome the chance to collaborate with him again in the future.",
         connection: 'Teammate',
-        title: 'Full Stack Developer'
+        position: 'Full Stack Developer'
     },
     {
         name: 'Josh Studley',
         testimonial:
             "I had the pleasure of managing Reed during the development of our app, and I cannot speak highly enough of his skills and contributions to our team. Reed's expertise in web development, particularly with React and Typescript, played a pivotal role in the successful delivery of our projects. Reed demonstrated an exceptional ability to collaborate seamlessly with cross-functional teams, especially with our UI/UX team. His keen understanding of design principles and user experience greatly enhanced the overall quality of our login page and mobile interfaces. What sets Reed apart is not only his technical proficiency but also his calm and composed demeanor. In the fast-paced world of web development, Reed's ability to stay level-headed under pressure was truly commendable. It created a positive and focused work environment, inspiring those around him to strive for excellence. If you're seeking a Senior Web Developer who combines technical prowess with a calm and collaborative approach, Reed is the ideal candidate. His dedication, expertise, and affable personality make him an asset to any development team.",
         connection: 'Manager',
-        title: 'Engineering Manager'
+        position: 'Engineering Manager'
     },
     {
         name: 'Basem Elsokary',
         testimonial:
             'I worked with Reed for several years at Openfit. When I first started working with Reed, he had a reputation as someone who got things done. Joining my team, I quickly learned that Reed was passionate about the tech, always wanting to learn, and always hungry for ways he could grow as an engineer. He grew into a Senior Engineer on my team, learning new stacks, and never afraid to take on any size effort, and solve any size problem. He worked well with his peers, and was always open to mentoring others, as well as being mentored by others. His collaborative spirit, and egoless approach to engineering, makes him a great asset to any organization.',
         connection: 'Manager',
-        title: 'Executive Director of Engineering'
+        position: 'Executive Director of Engineering'
     },
     {
         name: 'Cian Zaricki',
         testimonial:
             'Reed is a solid developer, mentor and team player. I worked with Reed for a year at Openfit and he consistently helped others, whether it was onboarding new team members or helping developers debug issues. Reed also demonstrated a willingness to expand his role, such as when he we stepped up to help with coordinating and improving our mobile app releases. I recommend Reed for a technical role on any team.',
         connection: 'Teammate',
-        title: 'Lead Engineer'
+        position: 'Lead Engineer'
     },
     {
         name: 'Daryl Lim',
         testimonial:
             "I worked along with Reed at Beachbody on a few different projects and was always impressed by his ability to grow and gain knowledge as a software developer. During our time together, he went from being a member of the team to being the engineering/delivery lead and was able to pick up those skills while doing great development work. He embraced the challenges of learning technologies which helped us move much faster as an agile team. I would highly recommend Reed to any organization and have no doubt in his ability to contribute to a company's knowledge base and culture.",
         connection: 'Teammate',
-        title: 'Product Manager'
+        position: 'Product Manager'
     },
     {
         name: 'Anil Chavarajula',
         testimonial:
             'I worked with Reed while he was our team lead on the Beachbody Network Team. In his tenure he led both on-site team in LA and off-site team in Pittsburgh for a site that was the main revenue stream of a $1 billion company. Reed is a true leader in Web Development with vast knowledge in all the prime areas. He trained a team of 8 people when I started our engagement with Beachbody. It was pleasure working with Reed and I personally learnt a lot of web development skills from him.',
         connection: 'Teammate',
-        title: 'UI Enigneer'
+        position: 'UI Enigneer'
     },
     {
         name: 'Naga Sai Aytha',
         testimonial:
             'I had the opportunity to work with Reed at Beachbody and found that Reed to be focused and results-driven technical leader.He has tremendous knowledge on the frontend technologies. He was a pleasure to work with and would be a great asset to any organization looking for a rare leader who also naturally serves as an inspiring mentor for the whole team',
         connection: 'Teammate',
-        title: 'UI Engineer'
+        position: 'UI Engineer'
     },
     {
         name: 'Joseph Puoci',
         testimonial:
             'I had the fortunate opportunity to work with Reed while an Agile Coach at Beachbody. Reed is a true example of servant leadership in action. Reed is also the guy you can count on to come through in the toughest of situations, supporting others, and always doing so with a smile on his face. His passion for technical excellence has made him a solid developer. Reed is a driving force in creating a high performing team and contributing to an energetic and fun organizational culture.',
         connection: 'Teammate',
-        title: 'Agile Coach'
+        position: 'Agile Coach'
     },
     {
         name: 'Mario Espana',
         testimonial:
             "I worked with Reed while he was Release Manager for Beachbody's Team Network site. Under his leadership, the team had tremendous growth and efficiency. He managed the dev team and helped us grow tremendously as a team. It would be a pleasure and reassuring to work with Reed again.",
         connection: 'Teammate',
-        title: 'QA Engineer'
+        position: 'QA Engineer'
     }
 ];

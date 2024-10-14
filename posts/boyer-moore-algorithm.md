@@ -25,6 +25,10 @@ In pseudocode:
 
 I came acrossed this problem in a Leetcode problem fyi.
 
+Here's a graphic from the Wikipedia page that I found handy:
+
+![Image](https://s3.us-west-2.amazonaws.com/reedthazen.me/images/posts/Boyer-Moore_MJRTY.png)
+
 If there's a guarantee that a majority element always exists, we don't need an additional check.
 
 ```javascript

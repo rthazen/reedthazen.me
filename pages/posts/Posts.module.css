@@ -4,6 +4,19 @@
     padding: revert;
 }
 
+.contentHTML ul ul {
+    padding-left: 1rem;
+}
+
+.contentHTML p {
+    margin: 1rem 0;
+}
+
+.contentHTML img {
+    max-width: 100%;
+    background-color: #ffffff;
+}
+
 .contentHTML pre {
     background-color: #000000;
     color: var(--pink);

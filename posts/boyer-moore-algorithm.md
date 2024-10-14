@@ -28,7 +28,7 @@ I came acrossed this problem in a Leetcode problem fyi.
 If there's a guarantee that a majority element always exists, we don't need an additional check.
 
 ```javascript
-function boyerMooreMajorityElement(nums: number[]): number {
+function majorityElement(nums: number[]): number {
     let candidate: number | null = null;
     let count = 0;
 
@@ -46,7 +46,7 @@ function boyerMooreMajorityElement(nums: number[]): number {
 But if there is no guarantee it is a good idea to run a check that the candidate appears n / 2 times.
 
 ```javascript
-function boyerMooreMajorityElement(nums: number[]): number | null {
+function majorityElement(nums: number[]): number | null {
     let candidate: number | null = null;
     let count = 0;
 

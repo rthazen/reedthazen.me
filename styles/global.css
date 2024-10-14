@@ -27,12 +27,6 @@ html {
     font-size: 14px; /* Default for small screens */
 }
 
-ul {
-    list-style: revert-layer;
-    margin: revert;
-    padding: revert;
-}
-
 /* Medium screens (768px and up) */
 @media (min-width: 768px) {
     html {

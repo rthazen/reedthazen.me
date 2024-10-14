@@ -1,0 +1,13 @@
+.contentHTML ul {
+    list-style: disc;
+    margin: revert;
+    padding: revert;
+}
+
+.contentHTML pre {
+    background-color: #000000;
+    color: var(--pink);
+    margin: 1rem 0;
+    padding: 1rem;
+    text-wrap: wrap;
+}

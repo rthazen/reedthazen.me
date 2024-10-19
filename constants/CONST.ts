@@ -8,7 +8,7 @@ export const blurb = 'Just build stuff';
 
 export const jobData = [
     {
-        company: 'Genvid Technologies',
+        company: 'Genvid Holdings',
         projects: [
             {
                 name: 'Silent Hill Ascension',

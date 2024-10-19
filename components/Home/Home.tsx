@@ -18,7 +18,7 @@ const Home = ({ home }) => {
                         <div className={`justify-center items-center lg:justify-start lg:items-start ${styles.personalInfo}`}>
                             <h1 className={`${utilStyles.heading2Xl} ${styles.name}`}>{name}</h1>
                             <p className={styles.jobTitle}>{jobTitle}</p>
-                            <p className={styles.blurb}>{blurb}</p>
+                            {/* <p className={styles.blurb}>{blurb}</p> */}
                         </div>
                     </div>
 

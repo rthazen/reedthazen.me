@@ -1,0 +1,154 @@
+/* MyRoster themed to match; shrink-safe so it won’t force the board to reflow */
+
+.panel {
+    margin-top: 1.25rem;
+    border: 1px solid rgba(150, 113, 23, 0.35); /* darkSand */
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.02) 100%);
+    padding: 1rem;
+    color: var(--whiteSand);
+    min-width: 0; /* allow shrinking inside outer grid */
+    inline-size: 320px;
+    max-inline-size: 100%;
+}
+
+.h2 {
+    margin: 0 0 0.5rem;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+}
+
+.targets {
+    margin-bottom: 0.75rem;
+}
+
+.row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 0.6rem;
+}
+
+.tcell {
+    display: grid;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+}
+.tcell span {
+    opacity: 0.85;
+}
+
+.tcell input {
+    width: 100%;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid rgba(244, 241, 201, 0.25);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.25);
+    color: var(--whiteSand);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.tcell input:focus {
+    border-color: var(--aqua);
+    box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.18);
+}
+
+.note {
+    font-size: 0.8rem;
+    color: rgba(244, 241, 201, 0.7);
+    margin-top: 0.3rem;
+}
+
+.section {
+    margin-top: 1rem;
+}
+
+.needsList {
+    margin: 0.35rem 0 0;
+    padding-left: 1rem;
+}
+.needsList li strong {
+    color: var(--yellow);
+}
+
+.rosterList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.posHeader {
+    font-weight: 800;
+    margin: 0.6rem 0 0.35rem;
+    color: var(--yellow);
+}
+
+.posList,
+.suggestList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.pick,
+.suggestList li {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.25rem 0;
+    min-width: 0; /* allow the row to shrink */
+}
+
+.rank {
+    font-weight: 800;
+    font-size: 0.9rem;
+    color: #1a1a1a;
+    background: var(--yellow);
+    border-radius: 9999px;
+    padding: 0.1rem 0.45rem;
+    line-height: 1;
+}
+
+.name {
+    font-weight: 700;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap; /* keep rows compact */
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.05rem 0.45rem;
+    border: 1px solid rgba(244, 241, 201, 0.25);
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--whiteSand);
+}
+
+/* "Remove" action = pink accent */
+.remove {
+    margin-left: auto;
+    font-size: 0.8rem;
+    padding: 0.22rem 0.55rem;
+    border: 1px solid rgba(251, 35, 148, 0.65); /* pink */
+    background: transparent;
+    color: var(--whiteSand);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.remove:hover {
+    background: rgba(251, 35, 148, 0.1);
+    box-shadow: 0 0 0 3px rgba(251, 35, 148, 0.15);
+}
+.remove:active {
+    transform: translateY(1px);
+}
+
+.empty {
+    color: rgba(244, 241, 201, 0.75);
+}
+
+.suggestBlock {
+    margin-top: 0.6rem;
+}

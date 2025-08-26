@@ -1,3 +1,4 @@
+// pages/projects.tsx
 import Head from 'next/head';
 import Layout from '../components/Layout';
 import { siteTitle } from '../constants/CONST';

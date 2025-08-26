@@ -1,4 +1,4 @@
-/* Stable grid, themed to lava/white-sand/aqua, pink "Taken", accordion + filters */
+/* Stable grid, lava/white-sand/aqua theme, pink "Taken", accordion + filters, mobile-friendly */
 
 .wrapper {
     margin-top: 1.25rem;
@@ -6,13 +6,14 @@
     min-width: 0; /* allow shrink inside outer grid */
 }
 
+/* ===== Toolbar ==================================================== */
 .toolbar {
     display: grid;
     grid-template-columns: 1fr auto auto auto;
     gap: 0.75rem;
     align-items: center;
     padding: 0.6rem 0.75rem;
-    border: 1px solid rgba(150, 113, 23, 0.35); /* darkSand */
+    border: 1px solid rgba(150, 113, 23, 0.35);
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.03);
     backdrop-filter: saturate(120%) blur(2px);
@@ -21,12 +22,12 @@
 .search {
     min-width: 220px;
     padding: 0.55rem 0.7rem;
-    border: 1px solid rgba(244, 241, 201, 0.25); /* whiteSand */
+    border: 1px solid rgba(244, 241, 201, 0.25);
     border-radius: 10px;
     background: rgba(0, 0, 0, 0.25);
     color: var(--whiteSand);
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 .search::placeholder {
     color: rgba(244, 241, 201, 0.6);
@@ -40,11 +41,10 @@
 .filters {
     display: inline-flex;
     gap: 0.4rem;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: flex-start;
+    flex-wrap: wrap;
 }
-
 .chip {
     border: 1px solid rgba(244, 241, 201, 0.25);
     background: rgba(255, 255, 255, 0.04);
@@ -54,7 +54,7 @@
     line-height: 1;
     border-radius: 9999px;
     cursor: pointer;
-    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 .chip:hover {
     border-color: rgba(0, 255, 255, 0.5);
@@ -93,8 +93,7 @@
 }
 .legendOther {
     border-color: var(--pink);
-    background: rgba(251, 35, 148, 0.15); /* pink tint */
-    color: var(--whiteSand);
+    background: rgba(251, 35, 148, 0.15);
 }
 
 .count {
@@ -103,7 +102,7 @@
     color: rgba(244, 241, 201, 0.75);
 }
 
-/* Accordion */
+/* ===== Accordion ================================================== */
 .accSection {
     margin-top: 0.75rem;
 }
@@ -121,22 +120,20 @@
     color: var(--whiteSand);
     cursor: pointer;
     text-align: left;
-    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 .accHeader:hover {
     border-color: rgba(150, 113, 23, 0.55);
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
-
 .chev {
     display: inline-block;
     transform: rotate(0deg);
-    transition: transform 0.15s ease;
+    transition: transform 0.15s;
 }
 .chev[data-open='1'] {
     transform: rotate(90deg);
 }
-
 .accTitle {
     font-weight: 800;
     letter-spacing: 0.2px;
@@ -146,7 +143,7 @@
     color: rgba(244, 241, 201, 0.75);
 }
 
-/* Grid of cards */
+/* ===== Grid of cards ============================================= */
 .grid {
     list-style: none;
     padding: 0;
@@ -154,25 +151,25 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 0.75rem;
-    min-width: 0; /* allow shrink inside outer grid */
-    align-items: start; /* don’t stretch rows */
+    min-width: 0;
+    align-items: start;
 }
 
 /* ----- Card: fixed height, no layout-changing effects ----- */
 .card {
-    position: relative; /* for absolute chips */
+    position: relative;
     display: flex;
     flex-direction: column;
-    align-items: flex-start; /* prevent children from stretching full width */
+    align-items: flex-start; /* prevent children stretching full width */
     min-width: 0;
     height: 150px; /* lock height so rows don’t jump */
-    border: 1px solid rgba(150, 113, 23, 0.35); /* darkSand */
+    border: 1px solid rgba(150, 113, 23, 0.35);
     border-radius: 14px;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.02) 100%);
     padding: 0.8rem 0.85rem;
     cursor: pointer;
     user-select: none;
-    transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    transition: box-shadow 0.15s, border-color 0.15s, background 0.15s;
 }
 .card:hover {
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
@@ -180,7 +177,7 @@
 }
 
 .rank {
-    align-self: flex-start; /* ensure badge doesn’t stretch */
+    align-self: flex-start;
     display: inline-block;
     font-weight: 800;
     font-size: 0.95rem;
@@ -195,7 +192,6 @@
     margin-top: 0.35rem;
     font-weight: 700;
     color: var(--whiteSand);
-    /* clamp so long names don’t grow the card or width */
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -206,8 +202,8 @@
     display: flex;
     gap: 0.35rem;
     flex-wrap: wrap;
-    margin-top: auto; /* push badges to bottom for consistent layout */
-    align-self: stretch; /* make the badges row use full width */
+    margin-top: auto; /* keep badges aligned to bottom */
+    align-self: stretch;
 }
 
 .badge {
@@ -219,7 +215,7 @@
     color: var(--whiteSand);
 }
 
-/* ----- Chips (absolute, so they don't change layout) ----- */
+/* ----- Chips (absolute, no layout impact) ----- */
 .flagMine,
 .flagOther {
     position: absolute;
@@ -230,7 +226,7 @@
     padding: 0.12rem 0.5rem;
     border-radius: 9999px;
     border: 1px solid transparent;
-    pointer-events: none; /* clicks go to card */
+    pointer-events: none;
 }
 .flagMine {
     color: #013b3b;
@@ -242,20 +238,16 @@
     background: var(--pink);
     border-color: var(--pink);
 }
-
-/* helper if you want to render both chips and toggle visibility */
 .hidden {
     opacity: 0;
     visibility: hidden;
 }
 
-/* ----- States (no size changes) ----- */
+/* ----- States ----- */
 .mine {
-    /* outline doesn’t affect layout; avoids border width changes */
     outline: 2px solid rgba(0, 255, 255, 0.25);
     outline-offset: 0;
 }
-
 .other .name {
     text-decoration: line-through;
     text-decoration-thickness: 2px;
@@ -282,7 +274,59 @@
     color: var(--whiteSand);
 }
 .error {
-    border-color: rgba(253, 213, 78, 0.5); /* yellow accent */
+    border-color: rgba(253, 213, 78, 0.5);
     background: rgba(253, 213, 78, 0.08);
-    color: var(--whiteSand);
+}
+
+/* ======== Mobile tweaks =========================================== */
+@media (max-width: 720px) {
+    .toolbar {
+        grid-template-columns: 1fr; /* stack everything */
+        gap: 0.6rem;
+    }
+    .filters {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+    .filters::-webkit-scrollbar {
+        display: none;
+    }
+    .legend {
+        justify-self: start;
+    }
+    .count {
+        margin-top: -0.15rem;
+    }
+
+    .grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 0.6rem;
+    }
+    .card {
+        height: 145px;
+        padding: 0.72rem 0.78rem;
+    }
+    .badge {
+        font-size: 0.72rem;
+        padding: 0.08rem 0.4rem;
+    }
+}
+
+@media (max-width: 420px) {
+    .grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 0.55rem;
+    }
+    .card {
+        height: 140px;
+        padding: 0.68rem 0.72rem;
+    }
+    .rank {
+        font-size: 0.9rem;
+    }
+    .chip {
+        padding: 0.26rem 0.5rem;
+        font-size: 0.82rem;
+    }
 }

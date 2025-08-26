@@ -1,14 +1,13 @@
 .twoCol {
     display: grid;
-    /* Left can shrink to 0; right is a fixed, stable width */
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1fr) 320px; /* fixed roster on wide screens */
     gap: 1rem;
     align-items: start;
 }
 
-/* Stack on smaller viewports */
 @media (max-width: 1100px) {
     .twoCol {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr; /* stack */
+        gap: 0.875rem;
     }
 }

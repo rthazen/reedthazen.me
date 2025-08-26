@@ -1,12 +1,28 @@
 export const name = 'Reed Hazen';
 
-export const siteTitle = 'Reed Hazen - Senior Frontend Engineer';
+export const siteTitle = 'Reed Hazen - Senior Software Engineer';
 
-export const jobTitle = 'Senior Frontend Engineer';
+export const jobTitle = 'Senior Software Engineer';
 
 export const blurb = 'Just build stuff';
 
 export const jobData = [
+    {
+        company: 'Ascension',
+        projects: [
+            {
+                name: 'Surgery Scheduling Manager',
+                url: 'https://surgeryschedulingmanager.ascension.org/'
+            }
+        ],
+        url: 'https://ascension.org/',
+        years: '2024 - Present',
+        skills: ['React', 'Typescript', 'GCP', 'Python', 'Javascript', 'RTL', 'Material UI', 'REST', 'Node.js', 'Java'],
+        role: 'Senior Software Engineer',
+        note: 'SSM is used by 1000s of surgeons and schedulers across the US',
+        description:
+            'Working within a cross-functional team to develop and enhance the Surgery Scheduling Manager (SSM) application, a critical tool utilized by thousands of surgeons and schedulers across the United States for efficient surgical scheduling and management.'
+    },
     {
         company: 'Genvid Holdings',
         projects: [

@@ -8,7 +8,7 @@ type RawPlayer = {
     team?: string | null;
     position?: string | null;
     fantasy_positions?: string[] | null;
-    search_rank?: number | null;
+    search_rank?: number | string | null;
     age?: number | null;
 };
 
@@ -16,9 +16,9 @@ type Player = {
     id: string;
     name: string;
     team: string;
-    pos: string; // may be "RB/WR" etc; we also compute a primary
+    pos: string; // "RB/WR", "QB", "DEF", etc.
     primary: string; // QB|RB|WR|TE|K|DEF|OTHER
-    rank: number;
+    rank: number; // we’ll push DEF to the end with a big rank
 };
 
 const MINE_KEY = 'ff.drafted.mine.v1';
@@ -36,13 +36,16 @@ type Targets = {
     BENCH: number;
 };
 
-const DEFAULT_TARGETS: Targets = { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, K: 0, DEF: 0, BENCH: 6 };
+const DEFAULT_TARGETS: Targets = { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, K: 0, DEF: 1, BENCH: 6 };
 
-// Map fantasy positions to a primary position
+// Allowed primaries for mapping
+const ALLOWED = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
+
 function getPrimary(fantasy_positions?: string[] | null, position?: string | null): string {
     const arr = (Array.isArray(fantasy_positions) ? fantasy_positions : []).map(String);
-    const pick = (...opts: string[]) => opts.find((o) => arr.includes(o));
-    return pick('QB', 'RB', 'WR', 'TE', 'K', 'DEF') || (position && ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'].includes(position) ? position : 'OTHER');
+    const pick = (...opts: string[]) => arr.find((v) => opts.includes(v));
+    const p = pick('QB', 'RB', 'WR', 'TE', 'K', 'DEF') || (position && ALLOWED.has(position) ? position : undefined);
+    return p || 'OTHER';
 }
 
 export default function MyRoster() {
@@ -51,7 +54,7 @@ export default function MyRoster() {
     const [others, setOthers] = useState<Set<string>>(new Set());
     const [targets, setTargets] = useState<Targets>(DEFAULT_TARGETS);
 
-    // Load/persist targets
+    // Load targets
     useEffect(() => {
         try {
             const raw = localStorage.getItem(TARGETS_KEY);
@@ -87,7 +90,7 @@ export default function MyRoster() {
         };
     }, []);
 
-    // Fetch players once
+    // Fetch players once; include DEF even if rank missing
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -95,16 +98,32 @@ export default function MyRoster() {
             const json = await res.json();
             const raw = json?.data || {};
             const arr: RawPlayer[] = Object.values(raw);
-            const all: Player[] = arr
-                .filter((p) => p && p.player_id != null && Number.isFinite(p.search_rank))
-                .map((p) => {
-                    const id = String(p.player_id);
-                    const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || id;
-                    const posJoined = Array.isArray(p.fantasy_positions) && p.fantasy_positions.length > 0 ? p.fantasy_positions.join('/') : p.position ?? '';
-                    const primary = getPrimary(p.fantasy_positions, p.position);
-                    return { id, name, team: p.team ?? '', pos: posJoined, primary, rank: Number(p.search_rank) };
-                })
-                .sort((a, b) => a.rank - b.rank);
+
+            const all: Player[] = [];
+            for (const p of arr) {
+                if (!p || p.player_id == null) continue;
+
+                const primary = getPrimary(p.fantasy_positions, p.position);
+                if (!ALLOWED.has(primary) && primary !== 'OTHER') continue; // skip IDP
+
+                const id = String(p.player_id);
+                const name = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() || (primary === 'DEF' ? `${p.team ?? 'Team'} DEF` : primary === 'K' ? `${p.team ?? 'Team'} K` : id);
+
+                const posJoined = Array.isArray(p.fantasy_positions) && p.fantasy_positions.length > 0 ? p.fantasy_positions.join('/') : p.position ?? primary;
+
+                // normalize rank; make DEF sort after skill players by using a big number
+                const rawRank = typeof p.search_rank === 'number' ? p.search_rank : Number(p.search_rank);
+                const rank =
+                    primary === 'DEF'
+                        ? 1_000_000 + name.charCodeAt(0) // push to end, light alpha tie-break
+                        : Number.isFinite(rawRank) && rawRank > 0
+                        ? rawRank
+                        : 999_999;
+
+                all.push({ id, name, team: p.team ?? '', pos: posJoined, primary, rank });
+            }
+
+            all.sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
             if (!cancelled) setPlayers(all);
         })();
         return () => {
@@ -149,7 +168,7 @@ export default function MyRoster() {
     // Available players (not drafted by anyone)
     const available = useMemo(() => players.filter((p) => !mine.has(p.id) && !others.has(p.id)), [players, mine, others]);
 
-    // Best suggestions for each deficit
+    // Suggest best for each deficit
     const suggest = (pos: 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF', limit = 5) => available.filter((p) => p.primary === pos).slice(0, limit);
 
     function removeFromMine(id: string) {
@@ -215,7 +234,7 @@ export default function MyRoster() {
                                     <ol className={styles.posList}>
                                         {myByPos[pos].map((p) => (
                                             <li key={p.id} className={styles.pick}>
-                                                <span className={styles.rank}>#{p.rank}</span>
+                                                <span className={styles.rank}>#{p.rank > 900000 ? '—' : p.rank}</span>
                                                 <span className={styles.name}>{p.name}</span>
                                                 {p.team && <span className={styles.badge}>{p.team}</span>}
                                                 <button className={styles.remove} onClick={() => removeFromMine(p.id)} aria-label={`Remove ${p.name}`}>
@@ -240,7 +259,7 @@ export default function MyRoster() {
                             <ol className={styles.suggestList}>
                                 {suggest(pos).map((p) => (
                                     <li key={p.id}>
-                                        <span className={styles.rank}>#{p.rank}</span>
+                                        <span className={styles.rank}>#{p.rank > 900000 ? '—' : p.rank}</span>
                                         <span className={styles.name}>{p.name}</span>
                                         {p.team && <span className={styles.badge}>{p.team}</span>}
                                     </li>
@@ -248,24 +267,6 @@ export default function MyRoster() {
                             </ol>
                         </div>
                     ) : null
-                )}
-                {flexNeed > 0 && (
-                    <div className={styles.suggestBlock}>
-                        <div className={styles.posHeader}>FLEX (RB/WR/TE)</div>
-                        <ol className={styles.suggestList}>
-                            {available
-                                .filter((p) => ['RB', 'WR', 'TE'].includes(p.primary))
-                                .slice(0, 5)
-                                .map((p) => (
-                                    <li key={p.id}>
-                                        <span className={styles.rank}>#{p.rank}</span>
-                                        <span className={styles.name}>{p.name}</span>
-                                        {p.team && <span className={styles.badge}>{p.team}</span>}
-                                        <span className={styles.badge}>{p.primary}</span>
-                                    </li>
-                                ))}
-                        </ol>
-                    </div>
                 )}
             </div>
         </aside>

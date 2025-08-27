@@ -1,3 +1,4 @@
+// components/Projects/FantasyFootball/DraftBoard.tsx
 import { useEffect, useMemo, useState } from 'react';
 import styles from './DraftBoard.module.css';
 
@@ -26,10 +27,12 @@ type Player = {
 const ALLOWED = new Set(['QB', 'RB', 'WR', 'TE', 'K', 'DEF']);
 const MINE_KEY = 'ff.drafted.mine.v1';
 const OTHER_KEY = 'ff.drafted.other.v1';
+const MINE_ORDER_KEY = 'ff.drafted.mine.order.v1';
 
 type PosFilter = 'ALL' | 'QB' | 'RB' | 'WR' | 'TE' | 'K';
 
-// ---------- helpers ----------
+/* ---------------- helpers ---------------- */
+
 function getPrimary(fantasy_positions?: string[] | null, position?: string | null): 'QB' | 'RB' | 'WR' | 'TE' | 'K' | 'DEF' | '' {
     const arr = (Array.isArray(fantasy_positions) ? fantasy_positions : []).map((s) => String(s).toUpperCase());
     const pick = (...opts: string[]) => arr.find((v) => opts.includes(v));
@@ -61,11 +64,29 @@ function saveSet(key: string, set: Set<string>) {
         localStorage.setItem(key, JSON.stringify(Array.from(set)));
     } catch {}
 }
+
+function loadOrder(): string[] {
+    try {
+        const raw = localStorage.getItem(MINE_ORDER_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr.map(String) : [];
+    } catch {
+        return [];
+    }
+}
+function saveOrder(arr: string[]) {
+    try {
+        localStorage.setItem(MINE_ORDER_KEY, JSON.stringify(arr));
+    } catch {}
+}
+
 function notifyDraftChange() {
     try {
         window.dispatchEvent(new Event('ff-draft-updated'));
     } catch {}
 }
+
+/* ---------------- component ---------------- */
 
 export default function DraftBoard() {
     // separate storage: skills (QB/RB/WR/TE/K) and defenses (DEF)
@@ -89,7 +110,9 @@ export default function DraftBoard() {
     useEffect(() => {
         setMine(loadSet(MINE_KEY));
         setOthers(loadSet(OTHER_KEY));
+        if (!localStorage.getItem(MINE_ORDER_KEY)) saveOrder([]);
     }, []);
+
     // Persist + notify
     useEffect(() => {
         saveSet(MINE_KEY, mine);
@@ -100,81 +123,19 @@ export default function DraftBoard() {
         notifyDraftChange();
     }, [others]);
 
-    // Fetch and build lists
     useEffect(() => {
         let cancelled = false;
         (async () => {
             try {
                 setLoading(true);
                 setError(null);
-
-                const res = await fetch('/api/players');
+                const res = await fetch('/api/draft-data');
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const json = await res.json();
-
-                const raw = (json?.data ?? {}) as Record<string, RawPlayer>;
-                const arr: RawPlayer[] = Object.values(raw);
-
-                const skills: Player[] = [];
-                const defs: Player[] = [];
-
-                for (const p of arr) {
-                    if (!p || p.player_id == null) continue;
-                    if (isInvalidPlaceholder(p)) continue;
-
-                    const primary = getPrimary(p.fantasy_positions, p.position);
-                    if (!primary || !ALLOWED.has(primary)) continue; // drop IDP
-
-                    const id = String(p.player_id);
-                    const rankNum = typeof p.search_rank === 'number' ? p.search_rank : Number(p.search_rank);
-
-                    // readable name
-                    let first = (p.first_name ?? '').trim();
-                    let last = (p.last_name ?? '').trim();
-                    let name = `${first} ${last}`.trim();
-                    if (!name) {
-                        if (primary === 'DEF') name = `${p.team ?? 'Team'} DEF`;
-                        else if (primary === 'K') name = `${p.team ?? 'Team'} K`;
-                        else name = id;
-                    }
-
-                    const joined = Array.isArray(p.fantasy_positions) && p.fantasy_positions.length > 0 ? p.fantasy_positions.join('/') : p.position ?? primary;
-
-                    if (primary === 'DEF') {
-                        defs.push({
-                            id,
-                            name,
-                            team: p.team ?? '',
-                            pos: joined,
-                            primary: 'DEF',
-                            rank: Number.isFinite(rankNum) ? rankNum : 0,
-                            age: p.age ?? null
-                        });
-                    } else {
-                        // skill players must have positive rank
-                        if (!Number.isFinite(rankNum) || rankNum <= 0) continue;
-                        skills.push({
-                            id,
-                            name,
-                            team: p.team ?? '',
-                            pos: joined,
-                            primary: primary as Player['primary'],
-                            rank: rankNum,
-                            age: p.age ?? null
-                        });
-                    }
-                }
-
-                // Sort and trim skills to top 250
-                skills.sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
-                const top250 = skills.slice(0, 250);
-
-                // Sort defenses alphabetically by name
-                defs.sort((a, b) => a.name.localeCompare(b.name));
+                const json = await res.json(); // { skillsTop200, defenses }
 
                 if (!cancelled) {
-                    setSkillPlayers(top250);
-                    setDefenses(defs);
+                    setSkillPlayers(json.skillsTop200);
+                    setDefenses(json.defenses);
                 }
             } catch (e: any) {
                 if (!cancelled) setError(e?.message || 'Failed to load players');
@@ -187,7 +148,7 @@ export default function DraftBoard() {
         };
     }, []);
 
-    // Stable display numbers for SKILL ONLY (#1..#250)
+    // Stable display numbers for SKILL ONLY (#1..#200)
     const skillIndex = useMemo(() => {
         const map = new Map<string, number>();
         skillPlayers.forEach((p, i) => map.set(p.id, i + 1));
@@ -216,10 +177,11 @@ export default function DraftBoard() {
         });
     }, [defenses, query, hideDrafted, mine, others]);
 
-    // Toggle states
+    // Toggle states (with pick order tracking)
     function cycleDraftState(id: string, preferOther = false) {
         const iMine = mine.has(id);
         const iOther = others.has(id);
+        const order = loadOrder();
 
         if (preferOther) {
             if (iOther) {
@@ -233,7 +195,14 @@ export default function DraftBoard() {
                 const nextM = new Set(mine);
                 nextM.delete(id);
                 setMine(nextM);
+                // remove from mine order if present
+                const idx = order.indexOf(id);
+                if (idx >= 0) {
+                    order.splice(idx, 1);
+                    saveOrder(order);
+                }
             }
+            notifyDraftChange();
             return;
         }
 
@@ -241,6 +210,10 @@ export default function DraftBoard() {
             const next = new Set(mine);
             next.add(id);
             setMine(next);
+            if (!order.includes(id)) {
+                order.push(id);
+                saveOrder(order);
+            } // append pick
         } else if (iMine) {
             const nextM = new Set(mine);
             nextM.delete(id);
@@ -248,11 +221,19 @@ export default function DraftBoard() {
             const nextO = new Set(others);
             nextO.add(id);
             setOthers(nextO);
+            const idx = order.indexOf(id);
+            if (idx >= 0) {
+                order.splice(idx, 1);
+                saveOrder(order);
+            } // remove from order
         } else if (iOther) {
             const next = new Set(others);
             next.delete(id);
             setOthers(next);
+            // (next click will add to mine + append to order)
         }
+
+        notifyDraftChange();
     }
 
     function onCardClick(e: React.MouseEvent, id: string) {
@@ -350,8 +331,13 @@ export default function DraftBoard() {
                                         {p.age != null && <span className={styles.badge}>{p.age}y</span>}
                                     </div>
 
-                                    {isMine && <div className={styles.flagMine}>Your pick</div>}
-                                    {isOther && <div className={styles.flagOther}>Taken</div>}
+                                    {/* render both chips; toggle visibility to avoid reflow */}
+                                    <div className={`${styles.flagMine} ${isMine ? '' : styles.hidden}`} aria-hidden={!isMine}>
+                                        Your pick
+                                    </div>
+                                    <div className={`${styles.flagOther} ${isOther ? '' : styles.hidden}`} aria-hidden={!isOther}>
+                                        Taken
+                                    </div>
                                 </li>
                             );
                         })}
@@ -404,8 +390,12 @@ export default function DraftBoard() {
                                         {p.team && <span className={styles.badge}>{p.team}</span>}
                                     </div>
 
-                                    {isMine && <div className={styles.flagMine}>Your pick</div>}
-                                    {isOther && <div className={styles.flagOther}>Taken</div>}
+                                    <div className={`${styles.flagMine} ${isMine ? '' : styles.hidden}`} aria-hidden={!isMine}>
+                                        Your pick
+                                    </div>
+                                    <div className={`${styles.flagOther} ${isOther ? '' : styles.hidden}`} aria-hidden={!isOther}>
+                                        Taken
+                                    </div>
                                 </li>
                             );
                         })}

@@ -12,5 +12,11 @@ export const projects: Project[] = [
         title: 'Fantasy Football Draft Assistant', // 👈 spaced title for UI
         summary: 'Next.js app that fetches and caches ~5MB of NFL player data from the Sleeper API for fast lookups.',
         tags: ['Next.js', 'TypeScript', 'API', 'Caching']
+    },
+    {
+        slug: 'adu-collaborator',
+        title: 'ADU Client Selections',
+        summary: 'Interactive checklist for tracking and sharing ADU construction selections with the project manager.',
+        tags: ['Construction', 'ADU', 'Los Angeles']
     }
 ];

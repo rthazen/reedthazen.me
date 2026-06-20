@@ -1,0 +1,60 @@
+.root {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem 4rem;
+}
+
+.header {
+    margin-bottom: 2rem;
+}
+
+.sections {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Desktop: hide remove button until hover */
+@media (hover: hover) {
+    .itemRow .removeBtn {
+        opacity: 0;
+        transition: opacity 0.15s ease;
+    }
+
+    .itemRow:hover .removeBtn {
+        opacity: 1;
+    }
+}
+
+@media (min-width: 640px) {
+    .root {
+        padding: 2.5rem 2rem 4rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .root {
+        padding: 3rem 3rem 5rem;
+    }
+}
+
+/* Saving spinner */
+.spin {
+    animation: adu-spin 1s linear infinite;
+}
+
+@keyframes adu-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Print */
+@media print {
+    .root {
+        padding: 0;
+        max-width: 100%;
+    }
+}

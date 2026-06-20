@@ -31,3 +31,6 @@ yarn-error.log*
 
 # Local Netlify folder
 .netlify
+
+# ADU checklist local dev store (Netlify Blobs fallback for `next dev`)
+.adu-dev-store.json

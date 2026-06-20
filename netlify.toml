@@ -1,0 +1,10 @@
+[build]
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Pin the Netlify Next.js Runtime v5. v5 uses the current prerendering APIs,
+# which resolves the "legacy prerendering is being deprecated" warning.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

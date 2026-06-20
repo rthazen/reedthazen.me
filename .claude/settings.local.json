@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(node_modules/.bin/next build *)",
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Read(//Users/reedhazen/code/**)",
+      "Bash(npm prefix *)",
+      "Read(//Users/reedhazen/**)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(git checkout *)",
+      "Bash(yarn --version)",
+      "Bash(corepack yarn *)",
+      "Bash(node -e \"const p=require\\('@netlify/blobs/package.json'\\); console.log\\('version:', p.version\\); console.log\\('deps:', JSON.stringify\\(p.dependencies||{}, null, 2\\)\\)\")",
+      "Bash(node -e \"console.log\\(require\\('os'\\).tmpdir\\(\\)\\)\")",
+      "Bash(rm -f \"$\\(node -e \"console.log\\(require\\('os'\\).tmpdir\\(\\)\\)\"\\)/adu-selections.dev.json\")",
+      "Bash(node_modules/.bin/next dev *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3999/api/adu)",
+      "Bash(curl -s http://localhost:3999/api/adu)",
+      "Bash(curl -s -X PUT http://localhost:3999/api/adu -H \"Content-Type: application/json\" -d '{\"entries\":{},\"customItems\":{},\"removedItems\":[]}')",
+      "Bash(curl -s -X PUT http://localhost:3999/api/adu -H \"Content-Type: application/json\" -H \"x-adu-edit-password: change-me-locally\" -d '{\"entries\":{\"stucco-color\":{\"value\":\"Swiss Coffee\",\"editedBy\":\"Reed\",\"editedAt\":\"2026-06-20T12:00:00.000Z\"}},\"customItems\":{},\"removedItems\":[]}')",
+      "Bash(curl -s -o /dev/null -w \"status=%{http_code}\\\\n\" -X PUT http://localhost:3999/api/adu -H \"Content-Type: application/json\" -H \"x-adu-edit-password: wrong\" -d '{\"entries\":{},\"customItems\":{},\"removedItems\":[]}')",
+      "Bash(curl -s -X PUT http://localhost:3999/api/adu -H \"Content-Type: application/json\" -H \"x-adu-edit-password: change-me-locally\" -d '{\"entries\":{\"stucco-color\":{\"value\":\"OLD VALUE\",\"editedBy\":\"PM\",\"editedAt\":\"2026-06-20T08:00:00.000Z\"}},\"customItems\":{},\"removedItems\":[]}')",
+      "Bash(node -e \"process.stdin.on\\('data',d=>console.log\\('stucco-color =>', JSON.parse\\(d\\).entries['stucco-color'].value\\)\\)\")",
+      "Bash(curl -s -X PUT http://localhost:3999/api/adu -H \"Content-Type: application/json\" -H \"x-adu-edit-password: change-me-locally\" -d '{\"entries\":{\"stucco-color\":{\"value\":\"NEW VALUE\",\"editedBy\":\"PM\",\"editedAt\":\"2026-06-20T20:00:00.000Z\"},\"roof-color\":{\"value\":\"Charcoal\",\"editedBy\":\"PM\",\"editedAt\":\"2026-06-20T20:00:00.000Z\"}},\"customItems\":{},\"removedItems\":[]}')",
+      "Bash(node -e \"process.stdin.on\\('data',d=>{const e=JSON.parse\\(d\\).entries;console.log\\('stucco-color =>', e['stucco-color'].value, '| roof-color =>', e['roof-color'].value\\)}\\)\")"
+    ]
+  }
+}

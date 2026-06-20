@@ -11,3 +11,17 @@ Will need to build a new project: `yarn build`
 then run `yarn dev` (`next dev`) to get a dev server with Fast Refresh enabled
 
 `yarn start` will start a dev server as well, but it will be whatever is in the build in the .next folder after running `yarn build`
+
+## ADU Client Selections checklist
+
+A shared, auto-saving checklist lives at `/projects/adu-collaborator`. It persists to
+[Netlify Blobs](https://docs.netlify.com/blobs/overview/) via the `/api/adu` route, so you and
+your project manager edit the same document. Anyone with the link can view; saving requires a
+shared password.
+
+Set the password in two places:
+
+- **Local dev:** add `ADU_EDIT_PASSWORD=...` to `.env.local` (see `.env.example`).
+- **Production:** Netlify → Site settings → Environment variables → add `ADU_EDIT_PASSWORD`.
+
+Without it set, viewing still works but saving returns "Editing is not configured."

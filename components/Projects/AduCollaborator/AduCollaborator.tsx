@@ -610,8 +610,12 @@ export default function AduCollaborator() {
     };
 
     // ── Progress ──
+    // A custom item counts toward the total once it's been "used" — i.e. it has a
+    // label (its name) OR a value (a selection) — so it counts regardless of which
+    // field was filled in first.
+    const customCounts = (it: CustomItemDef) => !!(it.label.trim() || (state.entries[it.id]?.value ?? '').trim());
     const allBaseItems = getAllBaseItems(aduChecklist).filter((it) => !state.removedItems.includes(it.id));
-    const allCustomItems = Object.values(state.customItems).flat().filter((it) => it.label.trim());
+    const allCustomItems = Object.values(state.customItems).flat().filter(customCounts);
     const totalItems = allBaseItems.length + allCustomItems.length;
     const filledItems = [...allBaseItems, ...allCustomItems].filter((it) => (state.entries[it.id]?.value ?? '').trim()).length;
     const progress = totalItems > 0 ? (filledItems / totalItems) * 100 : 0;
@@ -709,7 +713,7 @@ export default function AduCollaborator() {
                 {aduChecklist.map((section) => {
                     const baseItems = section.subsections.flatMap((ss) => ss.items);
                     const visibleBase = baseItems.filter((it) => !state.removedItems.includes(it.id));
-                    const customForSection = section.subsections.flatMap((ss) => (state.customItems[ss.id] ?? []).filter((it) => it.label.trim()));
+                    const customForSection = section.subsections.flatMap((ss) => (state.customItems[ss.id] ?? []).filter(customCounts));
                     const allVisible = [...visibleBase, ...customForSection];
                     const sectionFilled = allVisible.filter((it) => (state.entries[it.id]?.value ?? '').trim()).length;
                     const sectionTotal = visibleBase.length + customForSection.length;
@@ -791,7 +795,7 @@ export default function AduCollaborator() {
                                                             <TextField
                                                                 value={item.label}
                                                                 onChange={(e) => updateCustomLabel(subsection.id, item.id, e.target.value)}
-                                                                placeholder="Item label..."
+                                                                placeholder="Name this item…"
                                                                 size="small"
                                                                 fullWidth
                                                                 sx={sxLabelField}

@@ -69,17 +69,19 @@ type PersistedState = {
     options: Record<string, OptionDef[]>;
     customItems: Record<string, CustomItemDef[]>;
     removedItems: string[];
+    deleted: string[]; // tombstones: permanently deleted custom item / option ids
 };
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'offline';
 
-const EMPTY: PersistedState = { entries: {}, options: {}, customItems: {}, removedItems: [] };
+const EMPTY: PersistedState = { entries: {}, options: {}, customItems: {}, removedItems: [], deleted: [] };
 
 function normalize(x: Partial<PersistedState> | null | undefined): PersistedState {
     return {
         entries: x?.entries ?? {},
         options: x?.options ?? {},
         customItems: x?.customItems ?? {},
-        removedItems: x?.removedItems ?? []
+        removedItems: x?.removedItems ?? [],
+        deleted: x?.deleted ?? []
     };
 }
 
@@ -520,7 +522,8 @@ export default function AduCollaborator() {
         (itemId: string, optionId: string) => {
             setState((prev) => ({
                 ...prev,
-                options: { ...prev.options, [itemId]: (prev.options[itemId] ?? []).filter((o) => o.id !== optionId) }
+                options: { ...prev.options, [itemId]: (prev.options[itemId] ?? []).filter((o) => o.id !== optionId) },
+                deleted: prev.deleted.includes(optionId) ? prev.deleted : [...prev.deleted, optionId]
             }));
             scheduleSave();
         },
@@ -579,7 +582,8 @@ export default function AduCollaborator() {
                 const { [itemId]: _v, ...entries } = next.entries;
                 const { [itemId + DUE_SUFFIX]: _d, ...entries2 } = entries;
                 const { [itemId]: _o, ...options } = next.options;
-                return { ...next, entries: entries2, options };
+                const deleted = next.deleted.includes(itemId) ? next.deleted : [...next.deleted, itemId];
+                return { ...next, entries: entries2, options, deleted };
             });
             scheduleSave();
         },
@@ -597,16 +601,24 @@ export default function AduCollaborator() {
     };
 
     // ── Manual refresh ──
-    const refresh = () => {
-        fetch(API)
-            .then((r) => (r.ok ? r.json() : Promise.reject()))
-            .then((doc) => {
-                setState(normalize(doc));
-                dirtyRef.current = false;
-                setSaveStatus('idle');
-                setSnackbar('Refreshed with the latest saved version.');
-            })
-            .catch(() => setSnackbar('Could not refresh from the server.'));
+    // Flush any pending local edits first so a refresh can't pull back changes
+    // (e.g. deletions) that haven't been saved to the server yet.
+    const refresh = async () => {
+        if (dirtyRef.current || pendingSave.current) {
+            if (saveTimer.current) clearTimeout(saveTimer.current);
+            await doSave();
+        }
+        try {
+            const r = await fetch(API);
+            if (!r.ok) throw new Error();
+            const doc = await r.json();
+            setState(normalize(doc));
+            dirtyRef.current = false;
+            setSaveStatus('idle');
+            setSnackbar('Refreshed with the latest saved version.');
+        } catch {
+            setSnackbar('Could not refresh from the server.');
+        }
     };
 
     // ── Progress ──

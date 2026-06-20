@@ -22,9 +22,13 @@ type AduState = {
     options: Record<string, OptionDef[]>;
     customItems: Record<string, CustomItemDef[]>;
     removedItems: string[];
+    // Tombstones: ids of custom items and options that were permanently deleted.
+    // Without these, the union-based merge would resurrect anything one side
+    // deleted but the stored copy still had.
+    deleted: string[];
 };
 
-const EMPTY: AduState = { entries: {}, options: {}, customItems: {}, removedItems: [] };
+const EMPTY: AduState = { entries: {}, options: {}, customItems: {}, removedItems: [], deleted: [] };
 
 // ── Storage: Netlify Blobs in production, local file fallback for `next dev` ──────
 // Plain `next dev` has no Netlify Blobs runtime context, so getStore() throws.
@@ -84,11 +88,18 @@ function normalize(x: Partial<AduState> | null | undefined): AduState {
         entries: x?.entries ?? {},
         options: x?.options ?? {},
         customItems: x?.customItems ?? {},
-        removedItems: x?.removedItems ?? []
+        removedItems: x?.removedItems ?? [],
+        deleted: x?.deleted ?? []
     };
 }
 
+// Strip the `::due` suffix to get the underlying item id for a given entries key.
+function baseId(entryKey: string): string {
+    return entryKey.endsWith('::due') ? entryKey.slice(0, -'::due'.length) : entryKey;
+}
+
 // Merge two docs so async collaborators converge:
+//  - deleted: union of tombstones (grows only); excluded everywhere below
 //  - entries: keep the edit with the later timestamp per field (covers due dates)
 //  - options: union by id per item, keeping the later-touched version (addedAt)
 //  - customItems: union by id per subsection (incoming label wins on conflict)
@@ -97,6 +108,9 @@ function mergeState(storedRaw: AduState, incomingRaw: AduState): AduState {
     const stored = normalize(storedRaw);
     const incoming = normalize(incomingRaw);
 
+    const deleted = Array.from(new Set(stored.deleted.concat(incoming.deleted)));
+    const isDeleted = new Set(deleted);
+
     const entries: Record<string, BlameEntry> = { ...stored.entries };
     for (const [id, inc] of Object.entries(incoming.entries)) {
         const cur = entries[id];
@@ -104,12 +118,17 @@ function mergeState(storedRaw: AduState, incomingRaw: AduState): AduState {
             entries[id] = inc;
         }
     }
+    // Drop selections/due dates belonging to tombstoned items.
+    for (const key of Object.keys(entries)) {
+        if (isDeleted.has(baseId(key))) delete entries[key];
+    }
 
     const options: Record<string, OptionDef[]> = {};
     const optItemIds = Array.from(
         new Set(Object.keys(stored.options).concat(Object.keys(incoming.options)))
     );
     for (const itemId of optItemIds) {
+        if (isDeleted.has(itemId)) continue; // whole item gone
         const byId = new Map<string, OptionDef>();
         for (const o of stored.options[itemId] ?? []) byId.set(o.id, o);
         for (const o of incoming.options[itemId] ?? []) {
@@ -118,7 +137,8 @@ function mergeState(storedRaw: AduState, incomingRaw: AduState): AduState {
                 byId.set(o.id, o);
             }
         }
-        options[itemId] = Array.from(byId.values());
+        const kept = Array.from(byId.values()).filter((o) => !isDeleted.has(o.id));
+        if (kept.length) options[itemId] = kept;
     }
 
     const customItems: Record<string, CustomItemDef[]> = {};
@@ -129,14 +149,15 @@ function mergeState(storedRaw: AduState, incomingRaw: AduState): AduState {
         const byId = new Map<string, CustomItemDef>();
         for (const it of stored.customItems[subId] ?? []) byId.set(it.id, it);
         for (const it of incoming.customItems[subId] ?? []) byId.set(it.id, it); // incoming wins
-        customItems[subId] = Array.from(byId.values());
+        const kept = Array.from(byId.values()).filter((it) => !isDeleted.has(it.id));
+        customItems[subId] = kept;
     }
 
     const removedItems = Array.from(
         new Set(stored.removedItems.concat(incoming.removedItems))
     );
 
-    return { entries, options, customItems, removedItems };
+    return { entries, options, customItems, removedItems, deleted };
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

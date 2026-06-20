@@ -15,7 +15,7 @@ export const projects: Project[] = [
     },
     {
         slug: 'adu-collaborator',
-        title: 'ADU Client Selections',
+        title: 'ADU Selections Tracker',
         summary: 'Interactive checklist for tracking and sharing ADU construction selections with the project manager.',
         tags: ['Construction', 'ADU', 'Los Angeles']
     }

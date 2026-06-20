@@ -37,6 +37,15 @@
     }
 }
 
+/* iOS Safari zooms in on any focused input with font-size < 16px and won't
+   reliably zoom back out. Force 16px on touch/small screens to prevent it. */
+@media (max-width: 768px) {
+    .root input,
+    .root textarea {
+        font-size: 16px !important;
+    }
+}
+
 /* Saving spinner */
 .spin {
     animation: adu-spin 1s linear infinite;

@@ -25,7 +25,9 @@
       "Bash(curl -s -X PUT http://localhost:3999/api/adu -H \"Content-Type: application/json\" -H \"x-adu-edit-password: change-me-locally\" -d '{\"entries\":{\"stucco-color\":{\"value\":\"OLD VALUE\",\"editedBy\":\"PM\",\"editedAt\":\"2026-06-20T08:00:00.000Z\"}},\"customItems\":{},\"removedItems\":[]}')",
       "Bash(node -e \"process.stdin.on\\('data',d=>console.log\\('stucco-color =>', JSON.parse\\(d\\).entries['stucco-color'].value\\)\\)\")",
       "Bash(curl -s -X PUT http://localhost:3999/api/adu -H \"Content-Type: application/json\" -H \"x-adu-edit-password: change-me-locally\" -d '{\"entries\":{\"stucco-color\":{\"value\":\"NEW VALUE\",\"editedBy\":\"PM\",\"editedAt\":\"2026-06-20T20:00:00.000Z\"},\"roof-color\":{\"value\":\"Charcoal\",\"editedBy\":\"PM\",\"editedAt\":\"2026-06-20T20:00:00.000Z\"}},\"customItems\":{},\"removedItems\":[]}')",
-      "Bash(node -e \"process.stdin.on\\('data',d=>{const e=JSON.parse\\(d\\).entries;console.log\\('stucco-color =>', e['stucco-color'].value, '| roof-color =>', e['roof-color'].value\\)}\\)\")"
+      "Bash(node -e \"process.stdin.on\\('data',d=>{const e=JSON.parse\\(d\\).entries;console.log\\('stucco-color =>', e['stucco-color'].value, '| roof-color =>', e['roof-color'].value\\)}\\)\")",
+      "Bash(git rm *)",
+      "Bash(git check-ignore *)"
     ]
   }
 }

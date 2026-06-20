@@ -686,7 +686,7 @@ export default function AduCollaborator() {
                     />
                 </Box>
 
-                <Stack direction="row" spacing={1.5} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
                     <Button variant="outlined" size="small" startIcon={<ContentCopyIcon />} onClick={copyLink} sx={{ color: C.aqua, borderColor: C.aqua, '&:hover': { borderColor: C.aqua, bgcolor: 'rgba(0,255,255,0.08)' } }}>
                         Copy Page Link
                     </Button>
@@ -699,9 +699,10 @@ export default function AduCollaborator() {
                     <Button variant="outlined" size="small" startIcon={<FileDownloadOutlinedIcon />} onClick={exportJson} sx={{ color: C.sand, borderColor: '#555', '&:hover': { borderColor: C.sand, bgcolor: 'rgba(244,241,201,0.06)' } }}>
                         Backup
                     </Button>
-                    <Box sx={{ flex: 1 }} />
-                    <SaveIndicator status={saveStatus} />
-                </Stack>
+                    <Box sx={{ ml: 'auto' }}>
+                        <SaveIndicator status={saveStatus} />
+                    </Box>
+                </Box>
             </Box>
 
             <Box className={styles.sections}>

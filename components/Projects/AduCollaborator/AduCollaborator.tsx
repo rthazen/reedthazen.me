@@ -36,8 +36,11 @@ import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { formatDistanceToNow } from 'date-fns';
+import useSWR from 'swr';
 import { aduChecklist, ChecklistSection, ItemType } from '../../../constants/aduChecklist';
+import { projects } from '../../../constants/projectsConst';
 import styles from './AduCollaborator.module.css';
 
 const CACHE_KEY = 'adu-selections-cache';
@@ -47,6 +50,7 @@ const API = '/api/adu';
 const POLL_MS = 25000;
 const SAVE_DEBOUNCE_MS = 800;
 const DUE_SUFFIX = '::due'; // entries key for an item's due date
+const TITLE = projects.find((p) => p.slug === 'adu-collaborator')?.title ?? 'ADU Client Selections';
 
 const C = {
     bg: '#3b3b3b',
@@ -181,6 +185,129 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
     );
 }
 
+// ─── Link previews ────────────────────────────────────────────────────────────
+
+type LinkPreviewData = {
+    url: string;
+    image?: string;
+    title?: string;
+    description?: string;
+    siteName?: string;
+    error?: string;
+};
+
+const URL_RE = /https?:\/\/[^\s)]+/gi;
+const fetcher = (u: string) => fetch(u).then((r) => r.json());
+
+function useDebounced<T>(value: T, ms: number): T {
+    const [v, setV] = useState(value);
+    useEffect(() => {
+        const t = setTimeout(() => setV(value), ms);
+        return () => clearTimeout(t);
+    }, [value, ms]);
+    return v;
+}
+
+function extractUrls(text: string): string[] {
+    const matches = text.match(URL_RE) ?? [];
+    // de-dupe while preserving order, trim trailing punctuation
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (let m of matches) {
+        m = m.replace(/[.,;]+$/, '');
+        if (!seen.has(m)) {
+            seen.add(m);
+            out.push(m);
+        }
+    }
+    return out;
+}
+
+function LinkPreview({ url }: { url: string }) {
+    const { data, isValidating } = useSWR<LinkPreviewData>(
+        `/api/link-preview?url=${encodeURIComponent(url)}`,
+        fetcher,
+        { revalidateOnFocus: false, dedupingInterval: 1000 * 60 * 60 }
+    );
+
+    const host = (() => {
+        try {
+            return new URL(url).hostname.replace(/^www\./, '');
+        } catch {
+            return url;
+        }
+    })();
+
+    // Always render a clickable card that opens in a new tab — even while the
+    // preview is still loading or if it has no image — so the link is always usable.
+    const loading = !data && isValidating;
+    const title = data?.title || host;
+    const subtitle = data?.siteName || host;
+
+    return (
+        <Box
+            component="a"
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={url}
+            sx={{
+                display: 'flex',
+                alignItems: 'stretch',
+                gap: 1.25,
+                mt: 1,
+                border: '1px solid #444',
+                borderRadius: 1.5,
+                overflow: 'hidden',
+                textDecoration: 'none',
+                cursor: 'pointer',
+                bgcolor: 'rgba(255,255,255,0.02)',
+                transition: 'border-color 0.15s ease, background-color 0.15s ease',
+                '&:hover': { borderColor: C.aqua, bgcolor: 'rgba(0,255,255,0.04)' }
+            }}
+        >
+            {data?.image && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                    src={data.image}
+                    alt=""
+                    loading="lazy"
+                    style={{ width: 64, minWidth: 64, height: 64, objectFit: 'cover', background: '#1f1f1f' }}
+                    onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = 'none';
+                    }}
+                />
+            )}
+            <Box sx={{ flex: 1, minWidth: 0, py: 0.75, px: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <Typography
+                    sx={{ color: C.aqua, fontSize: '0.8rem', fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', textDecoration: 'underline', textUnderlineOffset: 2 }}
+                >
+                    {loading ? 'Loading preview…' : title}
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                    <OpenInNewIcon sx={{ fontSize: 12, color: C.muted }} />
+                    <Typography sx={{ color: C.muted, fontSize: '0.68rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        Open {subtitle} in new tab
+                    </Typography>
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
+function LinkPreviews({ text }: { text: string }) {
+    const debounced = useDebounced(text, 600);
+    const urls = extractUrls(debounced);
+    if (urls.length === 0) return null;
+    return (
+        <Box>
+            {urls.map((u) => (
+                <LinkPreview key={u} url={u} />
+            ))}
+        </Box>
+    );
+}
+
 // ─── Item row (shared by base + custom items) ─────────────────────────────────
 
 type ItemRowProps = {
@@ -244,6 +371,7 @@ function ItemRow({
                     />
                 )}
                 <BlameChip entry={valueEntry} />
+                {type !== 'yes_no' && <LinkPreviews text={value} />}
 
                 {/* Options (candidates) */}
                 {options.length > 0 && (
@@ -286,6 +414,7 @@ function ItemRow({
                                             <Typography sx={{ color: '#6b7280', fontSize: '0.66rem', mt: 0.2, lineHeight: 1.2 }}>
                                                 added by {o.addedBy} &middot; {relativeTime(o.addedAt)}
                                             </Typography>
+                                            <LinkPreviews text={o.label} />
                                         </Box>
                                         <Tooltip title="Remove option" placement="top">
                                             <IconButton
@@ -662,7 +791,7 @@ export default function AduCollaborator() {
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 1 }}>
                     <Box>
                         <Typography variant="h4" sx={{ color: C.aqua, fontWeight: 700, mb: 0.5 }}>
-                            ADU Client Selections
+                            {TITLE}
                         </Typography>
                         <Typography sx={{ color: C.muted, fontSize: '0.9rem' }}>
                             Los Angeles ADU Project &mdash; a shared, auto-saving checklist for you and your PM.

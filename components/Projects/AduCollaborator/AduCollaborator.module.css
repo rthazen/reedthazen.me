@@ -46,6 +46,14 @@
     }
 }
 
+/* The HTML5 drag handle doesn't work on touch; hide it there and rely on the
+   up/down arrows instead. */
+@media (pointer: coarse) {
+    .dragHandle {
+        display: none !important;
+    }
+}
+
 /* Saving spinner */
 .spin {
     animation: adu-spin 1s linear infinite;

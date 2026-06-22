@@ -38,6 +38,8 @@ import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { formatDistanceToNow } from 'date-fns';
 import useSWR from 'swr';
@@ -841,6 +843,22 @@ export default function AduCollaborator() {
         [mutateStructure]
     );
 
+    // Move a group up (-1) or down (+1) — touch-friendly reordering for mobile.
+    const moveSectionBy = useCallback(
+        (sectionId: string, delta: number) => {
+            mutateStructure((s) => {
+                const idx = s.findIndex((sec) => sec.id === sectionId);
+                const j = idx + delta;
+                if (idx < 0 || j < 0 || j >= s.length) return s;
+                const next = [...s];
+                const [moved] = next.splice(idx, 1);
+                next.splice(j, 0, moved);
+                return next;
+            });
+        },
+        [mutateStructure]
+    );
+
     // The drag handle "arms" a group as draggable on mouse-down; disarm on release
     // so item fields inside a group stay normally selectable/editable.
     useEffect(() => {
@@ -976,7 +994,7 @@ export default function AduCollaborator() {
             </Box>
 
             <Box className={styles.sections}>
-                {state.structure.map((section) => {
+                {state.structure.map((section, sectionIdx) => {
                     const sectionItems = section.subsections.flatMap((ss) => ss.items).filter(counts);
                     const sectionFilled = sectionItems.filter((it) => (state.entries[it.id]?.value ?? '').trim()).length;
                     const sectionTotal = sectionItems.length;
@@ -1024,12 +1042,45 @@ export default function AduCollaborator() {
                             <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: C.aqua }} />} sx={{ px: 2, minHeight: 52 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', pr: 1 }}>
                                     <Box
+                                        className={styles.dragHandle}
                                         onMouseDown={() => setArmed(section.id)}
                                         onClick={(e) => e.stopPropagation()}
                                         title="Drag to reorder group"
-                                        sx={{ display: 'flex', alignItems: 'center', cursor: 'grab', color: '#777', '&:hover': { color: C.aqua }, '&:active': { cursor: 'grabbing' }, mr: 0.5, touchAction: 'none' }}
+                                        sx={{ display: 'flex', alignItems: 'center', cursor: 'grab', color: '#777', '&:hover': { color: C.aqua }, '&:active': { cursor: 'grabbing' }, touchAction: 'none' }}
                                     >
                                         <DragIndicatorIcon sx={{ fontSize: 20 }} />
+                                    </Box>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', mr: 0.25 }}>
+                                        <Tooltip title="Move group up" placement="top">
+                                            <span>
+                                                <IconButton
+                                                    size="small"
+                                                    disabled={sectionIdx === 0}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        moveSectionBy(section.id, -1);
+                                                    }}
+                                                    sx={{ p: 0, color: '#888', '&:hover': { color: C.aqua }, '&.Mui-disabled': { color: '#444' } }}
+                                                >
+                                                    <KeyboardArrowUpIcon sx={{ fontSize: 18 }} />
+                                                </IconButton>
+                                            </span>
+                                        </Tooltip>
+                                        <Tooltip title="Move group down" placement="bottom">
+                                            <span>
+                                                <IconButton
+                                                    size="small"
+                                                    disabled={sectionIdx === state.structure.length - 1}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        moveSectionBy(section.id, 1);
+                                                    }}
+                                                    sx={{ p: 0, color: '#888', '&:hover': { color: C.aqua }, '&.Mui-disabled': { color: '#444' } }}
+                                                >
+                                                    <KeyboardArrowDownIcon sx={{ fontSize: 18 }} />
+                                                </IconButton>
+                                            </span>
+                                        </Tooltip>
                                     </Box>
                                     {editingSection === section.id ? (
                                         <TextField

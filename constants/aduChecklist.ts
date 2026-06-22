@@ -29,12 +29,16 @@ export const aduChecklist: ChecklistSection[] = [
                 id: 'exterior-finish',
                 title: 'Exterior Finish',
                 items: [
-                    { id: 'stucco-color', label: 'Stucco color' },
+                    {
+                        id: 'stucco-color',
+                        label: 'Stucco color',
+                        note: 'Two coats of stucco; paint matched to the existing house as closely as possible'
+                    },
                     { id: 'fascia-trim-color', label: 'Fascia/trim color' },
                     {
                         id: 'roof-color',
                         label: 'Roof color/material',
-                        note: 'Usually matching the existing house or as close as possible'
+                        note: 'Plywood, Sharkskin underlayment, and Owens Corning asphalt shingles — matched to the existing house roof as closely as possible'
                     },
                     { id: 'house-numbers', label: 'House numbers', note: 'Client to purchase, we can install' }
                 ]
@@ -46,6 +50,11 @@ export const aduChecklist: ChecklistSection[] = [
                     { id: 'exterior-light-fixtures', label: 'Exterior light fixtures' },
                     { id: 'exterior-outlet-locations', label: 'Exterior outlet locations' },
                     { id: 'exterior-hose-bib', label: 'Exterior hose bib locations' },
+                    {
+                        id: 'tankless-water-heater',
+                        label: 'Tankless water heater location',
+                        note: 'Supplied and installed by us; $1,000 allowance'
+                    },
                     {
                         id: 'utility-meter-separation',
                         label: 'Utility meter separation with LADWP/Edison',
@@ -83,7 +92,7 @@ export const aduChecklist: ChecklistSection[] = [
                     {
                         id: 'front-door',
                         label: 'Front entrance door selection',
-                        note: 'Pre-hung is best; please send us a link. Must remain within budget allowance'
+                        note: 'Pre-hung is best; please send us a link. Must remain within the $500 allowance'
                     }
                 ]
             },
@@ -91,13 +100,13 @@ export const aduChecklist: ChecklistSection[] = [
                 id: 'interior-doors',
                 title: 'Interior Doors',
                 items: [
-                    { id: 'interior-room-doors', label: 'Interior room doors', note: 'Pre-hung is best' },
+                    { id: 'interior-room-doors', label: 'Interior room doors', note: 'Pre-hung is best; $400/door allowance' },
                     {
                         id: 'interior-closet-doors',
                         label: 'Interior closet doors',
-                        note: 'Typically mirrored sliders'
+                        note: 'Typically mirrored sliders; $400/door allowance'
                     },
-                    { id: 'laundry-room-door', label: 'Laundry room door', note: 'Typically bi-fold' },
+                    { id: 'laundry-room-door', label: 'Laundry room door', note: 'Typically bi-fold; $400/door allowance' },
                     { id: 'interior-door-hardware-finish', label: 'Interior door hardware finish' },
                     { id: 'door-stop-style', label: 'Door stop style' }
                 ]
@@ -106,7 +115,11 @@ export const aduChecklist: ChecklistSection[] = [
                 id: 'sliding-doors',
                 title: 'Sliding Doors',
                 items: [
-                    { id: 'sliding-door-style', label: 'Sliding door style/design' },
+                    {
+                        id: 'sliding-door-style',
+                        label: 'Sliding door style/design',
+                        note: 'Not included in base contract — $1,800 added cost per 6 ft sliding door'
+                    },
                     { id: 'sliding-door-hardware-finish', label: 'Sliding door hardware finish' }
                 ]
             }
@@ -121,10 +134,19 @@ export const aduChecklist: ChecklistSection[] = [
                 id: 'cabinets',
                 title: 'Cabinets',
                 items: [
-                    { id: 'cabinet-style', label: 'Cabinet style' },
+                    {
+                        id: 'cabinet-style',
+                        label: 'Cabinet style',
+                        note: 'Up to 20 linear feet of semi-custom / pre-fabricated cabinets included'
+                    },
                     { id: 'cabinet-color', label: 'Cabinet color' },
                     { id: 'cabinet-handles', label: 'Cabinet handles' },
-                    { id: 'soft-close', label: 'Soft-close drawers and doors', type: 'yes_no' }
+                    {
+                        id: 'soft-close',
+                        label: 'Soft-close drawers and doors',
+                        note: 'Included on all cabinet doors and drawers per contract',
+                        type: 'yes_no'
+                    }
                 ]
             },
             {
@@ -135,7 +157,7 @@ export const aduChecklist: ChecklistSection[] = [
                     {
                         id: 'countertop-material',
                         label: 'Countertop material',
-                        note: 'Quartz or granite'
+                        note: 'Quartz or granite; quartz allowance $500/slab, up to 3 slabs'
                     },
                     { id: 'edge-profile', label: 'Edge profile' },
                     {
@@ -149,16 +171,16 @@ export const aduChecklist: ChecklistSection[] = [
                 id: 'sink-faucet',
                 title: 'Sink & Faucet',
                 items: [
-                    { id: 'kitchen-sink-style', label: 'Kitchen sink style' },
+                    { id: 'kitchen-sink-style', label: 'Kitchen sink style', note: 'Owner-supplied; we install' },
                     { id: 'kitchen-sink-material', label: 'Kitchen sink material/color' },
-                    { id: 'kitchen-faucet', label: 'Kitchen faucet' }
+                    { id: 'kitchen-faucet', label: 'Kitchen faucet', note: 'Owner-supplied; we install' }
                 ]
             },
             {
                 id: 'backsplash',
                 title: 'Backsplash',
                 items: [
-                    { id: 'backsplash-tile', label: 'Backsplash tile' },
+                    { id: 'backsplash-tile', label: 'Backsplash tile', note: 'Tile allowance $5/sq ft' },
                     { id: 'backsplash-grout-color', label: 'Grout color' },
                     { id: 'backsplash-schluter-color', label: 'Schluter/trim color' }
                 ]
@@ -167,13 +189,13 @@ export const aduChecklist: ChecklistSection[] = [
                 id: 'kitchen-appliances',
                 title: 'Appliances',
                 items: [
-                    { id: 'refrigerator', label: 'Refrigerator' },
-                    { id: 'range-stove', label: 'Range/stove' },
-                    { id: 'oven', label: 'Oven' },
-                    { id: 'microwave', label: 'Microwave' },
-                    { id: 'hood', label: 'Hood' },
-                    { id: 'dishwasher', label: 'Dishwasher' },
-                    { id: 'garbage-disposal', label: 'Garbage disposal', type: 'yes_no' }
+                    { id: 'refrigerator', label: 'Refrigerator', note: 'Owner-supplied; we install' },
+                    { id: 'range-stove', label: 'Range/stove', note: 'Owner-supplied; we install' },
+                    { id: 'oven', label: 'Oven', note: 'Owner-supplied; we install' },
+                    { id: 'microwave', label: 'Microwave', note: 'Owner-supplied; we install' },
+                    { id: 'hood', label: 'Hood', note: 'Owner-supplied; we install' },
+                    { id: 'dishwasher', label: 'Dishwasher', note: 'Owner-supplied; we install' },
+                    { id: 'garbage-disposal', label: 'Garbage disposal', note: 'Owner-supplied; we install', type: 'yes_no' }
                 ]
             },
             {
@@ -198,24 +220,24 @@ export const aduChecklist: ChecklistSection[] = [
                 id: 'vanity',
                 title: 'Vanity Area',
                 items: [
-                    { id: 'vanity', label: 'Vanity', note: 'Wayfair is recommended' },
-                    { id: 'mirror', label: 'Mirror' },
-                    { id: 'bathroom-faucet', label: 'Faucet' },
-                    { id: 'bathroom-sink', label: 'Sink' }
+                    { id: 'vanity', label: 'Vanity', note: 'Owner-supplied (Wayfair recommended); we install' },
+                    { id: 'mirror', label: 'Mirror', note: 'Owner-supplied; we install' },
+                    { id: 'bathroom-faucet', label: 'Faucet', note: 'Owner-supplied; we install' },
+                    { id: 'bathroom-sink', label: 'Sink', note: 'Owner-supplied; we install' }
                 ]
             },
             {
                 id: 'toilet',
                 title: 'Toilet',
-                items: [{ id: 'toilet-selection', label: 'Toilet selection' }]
+                items: [{ id: 'toilet-selection', label: 'Toilet selection', note: 'Owner-supplied; we install' }]
             },
             {
                 id: 'shower',
                 title: 'Shower',
                 items: [
-                    { id: 'shower-wall-tile', label: 'Shower wall tile' },
-                    { id: 'shower-floor-tile', label: 'Shower floor tile' },
-                    { id: 'shower-niche-tile', label: 'Shower niche tile' },
+                    { id: 'shower-wall-tile', label: 'Shower wall tile', note: 'Tile allowance $5/sq ft' },
+                    { id: 'shower-floor-tile', label: 'Shower floor tile', note: 'Tile allowance $5/sq ft' },
+                    { id: 'shower-niche-tile', label: 'Shower niche tile', note: 'Tile allowance $5/sq ft' },
                     { id: 'niche-size', label: 'Niche size' },
                     { id: 'niche-location', label: 'Niche location' },
                     { id: 'shower-bench', label: 'Shower bench', note: 'If desired', type: 'yes_no' },
@@ -224,7 +246,7 @@ export const aduChecklist: ChecklistSection[] = [
                     {
                         id: 'shower-glass-door-style',
                         label: 'Shower glass door style',
-                        note: 'We will finalize the design with the glass company during field measurements'
+                        note: 'We will finalize the design with the glass company during field measurements. $1,000 allowance (prefabricated)'
                     },
                     { id: 'shower-glass-hardware-finish', label: 'Shower glass hardware finish' },
                     { id: 'shower-door-swing', label: 'Shower door swing direction' }
@@ -234,7 +256,7 @@ export const aduChecklist: ChecklistSection[] = [
                 id: 'bathroom-flooring',
                 title: 'Bathroom Flooring',
                 items: [
-                    { id: 'bathroom-floor-tile', label: 'Bathroom floor tile or vinyl' },
+                    { id: 'bathroom-floor-tile', label: 'Bathroom floor tile or vinyl', note: 'Tile allowance $5/sq ft; SPC vinyl is the lower-cost option' },
                     { id: 'bathroom-grout-color', label: 'Grout color' },
                     { id: 'bathroom-schluter-edge-color', label: 'Schluter edge color' }
                 ]
@@ -243,10 +265,10 @@ export const aduChecklist: ChecklistSection[] = [
                 id: 'bathroom-accessories',
                 title: 'Accessories',
                 items: [
-                    { id: 'towel-bars', label: 'Towel bars' },
-                    { id: 'towel-rings', label: 'Towel rings' },
-                    { id: 'robe-hooks', label: 'Robe hooks' },
-                    { id: 'toilet-paper-holder', label: 'Toilet paper holder' }
+                    { id: 'towel-bars', label: 'Towel bars', note: 'Owner-supplied; we install' },
+                    { id: 'towel-rings', label: 'Towel rings', note: 'Owner-supplied; we install' },
+                    { id: 'robe-hooks', label: 'Robe hooks', note: 'Owner-supplied; we install' },
+                    { id: 'toilet-paper-holder', label: 'Toilet paper holder', note: 'Owner-supplied; we install' }
                 ]
             }
         ]
@@ -259,13 +281,13 @@ export const aduChecklist: ChecklistSection[] = [
                 id: 'flooring',
                 title: 'Flooring',
                 items: [
-                    { id: 'flooring-material', label: 'Flooring material', note: 'Typically SPC vinyl' },
+                    { id: 'flooring-material', label: 'Flooring material', note: 'Typically SPC vinyl; $4/sq ft allowance' },
                     { id: 'flooring-color', label: 'Flooring color/style' },
                     { id: 'flooring-direction', label: 'Flooring direction/layout' },
                     {
                         id: 'flooring-selection',
                         label: 'Flooring selection',
-                        note: 'Must remain within contract budget allowance'
+                        note: 'Must remain within the $4/sq ft contract allowance'
                     }
                 ]
             },
@@ -273,7 +295,7 @@ export const aduChecklist: ChecklistSection[] = [
                 id: 'trim',
                 title: 'Trim',
                 items: [
-                    { id: 'base-molding-style', label: 'Base molding style' },
+                    { id: 'base-molding-style', label: 'Base molding style', note: 'Baseboard molding allowance $2/sq ft' },
                     { id: 'base-molding-color', label: 'Base molding color' }
                 ]
             }
@@ -350,7 +372,7 @@ export const aduChecklist: ChecklistSection[] = [
                 id: 'mini-split',
                 title: 'Mini Split System',
                 items: [
-                    { id: 'indoor-head-locations', label: 'Indoor head locations' },
+                    { id: 'indoor-head-locations', label: 'Indoor head locations', note: '1–2 mini-split units included; $1,000/unit allowance' },
                     { id: 'outdoor-condenser-location', label: 'Outdoor condenser location' },
                     { id: 'thermostat-location', label: 'Thermostat/control location' }
                 ]
@@ -365,8 +387,8 @@ export const aduChecklist: ChecklistSection[] = [
                 id: 'laundry-appliances',
                 title: 'Appliances',
                 items: [
-                    { id: 'washer', label: 'Washer' },
-                    { id: 'dryer', label: 'Dryer' },
+                    { id: 'washer', label: 'Washer', note: 'Owner-supplied; we install' },
+                    { id: 'dryer', label: 'Dryer', note: 'Owner-supplied; we install' },
                     {
                         id: 'laundry-configuration',
                         label: 'Configuration',

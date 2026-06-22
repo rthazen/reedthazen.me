@@ -59,14 +59,26 @@ async function assertPublicUrl(raw: string): Promise<URL> {
 
 function decodeEntities(s: string): string {
     return s
-        .replace(/&amp;/g, '&')
+        .replace(/&#(\d+);/g, (_, n) => {
+            try {
+                return String.fromCodePoint(parseInt(n, 10));
+            } catch {
+                return _;
+            }
+        })
+        .replace(/&#x([0-9a-f]+);/gi, (_, n) => {
+            try {
+                return String.fromCodePoint(parseInt(n, 16));
+            } catch {
+                return _;
+            }
+        })
         .replace(/&quot;/g, '"')
-        .replace(/&#0?39;/g, "'")
-        .replace(/&#x27;/gi, "'")
         .replace(/&apos;/g, "'")
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
-        .replace(/&nbsp;/g, ' ');
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&');
 }
 
 function metaContent(html: string, key: string): string | undefined {
@@ -145,6 +157,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const raw = String(req.query.url ?? '').trim();
     if (!raw) return res.status(400).json({ url: '', error: 'Missing url' });
 
+    const ok = (p: Preview) => !!(p.title || p.image); // a "real" preview worth caching
     const hit = cache.get(raw);
     if (hit && Date.now() - hit.at < TTL_MS) {
         res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
@@ -154,11 +167,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     try {
         const u = await assertPublicUrl(raw);
         const data = await fetchPreview(u);
-        cache.set(raw, { at: Date.now(), data });
-        res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+        if (ok(data)) {
+            // Only cache successful previews so a transient block/empty result
+            // doesn't get stuck for a day — the next request will retry.
+            cache.set(raw, { at: Date.now(), data });
+            res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+        } else {
+            res.setHeader('Cache-Control', 'public, s-maxage=300');
+        }
         return res.status(200).json(data);
     } catch (e: any) {
         // Return 200 so the client can gracefully fall back to a plain link.
+        res.setHeader('Cache-Control', 'public, s-maxage=120');
         return res.status(200).json({ url: raw, error: e?.message || 'Could not load preview' });
     }
 }

@@ -157,10 +157,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     const raw = String(req.query.url ?? '').trim();
     if (!raw) return res.status(400).json({ url: '', error: 'Missing url' });
 
-    const ok = (p: Preview) => !!(p.title || p.image); // a "real" preview worth caching
+    // IMPORTANT: use `private` (browser-only) caching. A shared CDN may key its
+    // cache by path and ignore the `?url=` query string, which would serve one
+    // link's preview for every link. Browsers always key by full URL, so private
+    // caching keeps each link's preview correct. The origin keeps its own
+    // per-URL in-memory cache below to avoid refetching.
+    const ok = (p: Preview) => !!(p.title || p.image);
     const hit = cache.get(raw);
     if (hit && Date.now() - hit.at < TTL_MS) {
-        res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+        res.setHeader('Cache-Control', 'private, max-age=3600');
         return res.status(200).json(hit.data);
     }
 
@@ -169,16 +174,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         const data = await fetchPreview(u);
         if (ok(data)) {
             // Only cache successful previews so a transient block/empty result
-            // doesn't get stuck for a day — the next request will retry.
+            // doesn't get stuck — the next request will retry.
             cache.set(raw, { at: Date.now(), data });
-            res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+            res.setHeader('Cache-Control', 'private, max-age=3600');
         } else {
-            res.setHeader('Cache-Control', 'public, s-maxage=300');
+            res.setHeader('Cache-Control', 'private, max-age=120');
         }
         return res.status(200).json(data);
     } catch (e: any) {
         // Return 200 so the client can gracefully fall back to a plain link.
-        res.setHeader('Cache-Control', 'public, s-maxage=120');
+        res.setHeader('Cache-Control', 'no-store');
         return res.status(200).json({ url: raw, error: e?.message || 'Could not load preview' });
     }
 }

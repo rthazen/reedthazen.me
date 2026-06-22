@@ -7,28 +7,26 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { getStore, type Store } from '@netlify/blobs';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { buildStructureFromLegacy, type ChecklistSection } from '../../constants/aduChecklist';
 
 const STORE_NAME = 'adu';
 const DOC_KEY = 'selections';
 
 // ── Shared document shape (mirrors the client) ──────────────────────────────────
-// `entries` is keyed by item id for the chosen selection, and by `${itemId}::due`
-// for that item's due date — both carry blame and merge identically.
+// `structure` is the editable checklist (sections → groups → items, with labels
+// and notes). `entries` is keyed by item id for the chosen selection, and by
+// `${itemId}::due` for that item's due date — both carry blame and merge per-field.
 type BlameEntry = { value: string; editedBy: string; editedAt: string };
-type CustomItemDef = { id: string; label: string; type?: 'text' | 'yes_no' };
 type OptionDef = { id: string; label: string; addedBy: string; addedAt: string };
 type AduState = {
+    structure: ChecklistSection[];
+    structureUpdatedAt: string; // ISO; structure merges last-write-wins on this
     entries: Record<string, BlameEntry>;
     options: Record<string, OptionDef[]>;
-    customItems: Record<string, CustomItemDef[]>;
-    removedItems: string[];
-    // Tombstones: ids of custom items and options that were permanently deleted.
-    // Without these, the union-based merge would resurrect anything one side
-    // deleted but the stored copy still had.
-    deleted: string[];
+    deleted: string[]; // tombstones for permanently deleted option ids
 };
 
-const EMPTY: AduState = { entries: {}, options: {}, customItems: {}, removedItems: [], deleted: [] };
+const EPOCH = new Date(0).toISOString();
 
 // ── Storage: Netlify Blobs in production, local file fallback for `next dev` ──────
 // Plain `next dev` has no Netlify Blobs runtime context, so getStore() throws.
@@ -48,16 +46,15 @@ function resolveStore(): Store {
 async function readDoc(): Promise<AduState> {
     try {
         const store = resolveStore();
-        const doc = (await store.get(DOC_KEY, { type: 'json' })) as AduState | null;
+        const doc = await store.get(DOC_KEY, { type: 'json' });
         return normalize(doc);
     } catch {
         // Dev fallback
         try {
             const raw = await fs.readFile(DEV_FILE, 'utf8');
-            const parsed = JSON.parse(raw);
-            return isValidState(parsed) ? normalize(parsed) : EMPTY;
+            return normalize(JSON.parse(raw));
         } catch {
-            return EMPTY;
+            return normalize(null);
         }
     }
 }
@@ -72,41 +69,41 @@ async function writeDoc(state: AduState): Promise<void> {
     }
 }
 
-function isValidState(x: any): x is AduState {
-    return (
-        x &&
-        typeof x === 'object' &&
-        typeof x.entries === 'object' &&
-        typeof x.customItems === 'object' &&
-        Array.isArray(x.removedItems)
-    );
+// Accept anything that at least looks like a doc with selection data.
+function isValidState(x: any): boolean {
+    return !!x && typeof x === 'object' && typeof x.entries === 'object';
 }
 
-// Normalize older/looser docs so every field exists before merging.
-function normalize(x: Partial<AduState> | null | undefined): AduState {
+// Normalize any stored/incoming doc (including the older shape that had
+// `customItems`/`removedItems` but no editable structure) to the current shape.
+function normalize(x: any): AduState {
+    const hasStructure = Array.isArray(x?.structure);
+    const structure: ChecklistSection[] = hasStructure
+        ? x.structure
+        : buildStructureFromLegacy(x?.customItems, x?.removedItems);
     return {
+        structure,
+        // Migrated-from-legacy structures get EPOCH so any real edit wins on merge.
+        structureUpdatedAt: x?.structureUpdatedAt ?? EPOCH,
         entries: x?.entries ?? {},
         options: x?.options ?? {},
-        customItems: x?.customItems ?? {},
-        removedItems: x?.removedItems ?? [],
         deleted: x?.deleted ?? []
     };
 }
 
-// Strip the `::due` suffix to get the underlying item id for a given entries key.
-function baseId(entryKey: string): string {
-    return entryKey.endsWith('::due') ? entryKey.slice(0, -'::due'.length) : entryKey;
-}
-
 // Merge two docs so async collaborators converge:
-//  - deleted: union of tombstones (grows only); excluded everywhere below
+//  - structure: last-write-wins on `structureUpdatedAt` (rare, usually one editor)
 //  - entries: keep the edit with the later timestamp per field (covers due dates)
-//  - options: union by id per item, keeping the later-touched version (addedAt)
-//  - customItems: union by id per subsection (incoming label wins on conflict)
-//  - removedItems: union
+//  - options: union by id per item, later-touched (addedAt) wins, minus tombstones
+//  - deleted: union of option tombstones (grows only)
 function mergeState(storedRaw: AduState, incomingRaw: AduState): AduState {
     const stored = normalize(storedRaw);
     const incoming = normalize(incomingRaw);
+
+    const sTime = (d: AduState) => Date.parse(d.structureUpdatedAt) || 0;
+    const useIncoming = sTime(incoming) >= sTime(stored);
+    const structure = useIncoming ? incoming.structure : stored.structure;
+    const structureUpdatedAt = useIncoming ? incoming.structureUpdatedAt : stored.structureUpdatedAt;
 
     const deleted = Array.from(new Set(stored.deleted.concat(incoming.deleted)));
     const isDeleted = new Set(deleted);
@@ -118,17 +115,10 @@ function mergeState(storedRaw: AduState, incomingRaw: AduState): AduState {
             entries[id] = inc;
         }
     }
-    // Drop selections/due dates belonging to tombstoned items.
-    for (const key of Object.keys(entries)) {
-        if (isDeleted.has(baseId(key))) delete entries[key];
-    }
 
     const options: Record<string, OptionDef[]> = {};
-    const optItemIds = Array.from(
-        new Set(Object.keys(stored.options).concat(Object.keys(incoming.options)))
-    );
+    const optItemIds = Array.from(new Set(Object.keys(stored.options).concat(Object.keys(incoming.options))));
     for (const itemId of optItemIds) {
-        if (isDeleted.has(itemId)) continue; // whole item gone
         const byId = new Map<string, OptionDef>();
         for (const o of stored.options[itemId] ?? []) byId.set(o.id, o);
         for (const o of incoming.options[itemId] ?? []) {
@@ -141,23 +131,7 @@ function mergeState(storedRaw: AduState, incomingRaw: AduState): AduState {
         if (kept.length) options[itemId] = kept;
     }
 
-    const customItems: Record<string, CustomItemDef[]> = {};
-    const subIds = Array.from(
-        new Set(Object.keys(stored.customItems).concat(Object.keys(incoming.customItems)))
-    );
-    for (const subId of subIds) {
-        const byId = new Map<string, CustomItemDef>();
-        for (const it of stored.customItems[subId] ?? []) byId.set(it.id, it);
-        for (const it of incoming.customItems[subId] ?? []) byId.set(it.id, it); // incoming wins
-        const kept = Array.from(byId.values()).filter((it) => !isDeleted.has(it.id));
-        customItems[subId] = kept;
-    }
-
-    const removedItems = Array.from(
-        new Set(stored.removedItems.concat(incoming.removedItems))
-    );
-
-    return { entries, options, customItems, removedItems, deleted };
+    return { structure, structureUpdatedAt, entries, options, deleted };
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Accordion,
     AccordionSummary,
@@ -36,20 +36,29 @@ import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { formatDistanceToNow } from 'date-fns';
 import useSWR from 'swr';
-import { aduChecklist, ChecklistSection, ItemType } from '../../../constants/aduChecklist';
+import {
+    ChecklistSection,
+    ChecklistItem,
+    ItemType,
+    defaultStructure,
+    buildStructureFromLegacy
+} from '../../../constants/aduChecklist';
 import { projects } from '../../../constants/projectsConst';
 import styles from './AduCollaborator.module.css';
 
-const CACHE_KEY = 'adu-selections-cache';
+const CACHE_KEY = 'adu-selections-cache-v2';
 const IDENTITY_KEY = 'adu-identity';
 const PASSWORD_KEY = 'adu-edit-password';
 const API = '/api/adu';
 const POLL_MS = 25000;
 const SAVE_DEBOUNCE_MS = 800;
-const DUE_SUFFIX = '::due'; // entries key for an item's due date
+const DUE_SUFFIX = '::due';
+const EPOCH = new Date(0).toISOString();
 const TITLE = projects.find((p) => p.slug === 'adu-collaborator')?.title ?? 'ADU Client Selections';
 
 const C = {
@@ -66,26 +75,60 @@ const C = {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type BlameEntry = { value: string; editedBy: string; editedAt: string };
-type CustomItemDef = { id: string; label: string; type?: ItemType };
 type OptionDef = { id: string; label: string; addedBy: string; addedAt: string };
-type PersistedState = {
+type Doc = {
+    structure: ChecklistSection[];
+    structureUpdatedAt: string;
     entries: Record<string, BlameEntry>;
     options: Record<string, OptionDef[]>;
-    customItems: Record<string, CustomItemDef[]>;
-    removedItems: string[];
-    deleted: string[]; // tombstones: permanently deleted custom item / option ids
+    deleted: string[];
 };
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'offline';
 
-const EMPTY: PersistedState = { entries: {}, options: {}, customItems: {}, removedItems: [], deleted: [] };
+const now = () => new Date().toISOString();
+const genId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
-function normalize(x: Partial<PersistedState> | null | undefined): PersistedState {
+function makeInitial(): Doc {
+    return { structure: defaultStructure(), structureUpdatedAt: EPOCH, entries: {}, options: {}, deleted: [] };
+}
+
+// Accept the current shape or migrate an older doc (which had customItems /
+// removedItems but no editable structure).
+function normalizeDoc(raw: any): Doc {
+    const structure: ChecklistSection[] = Array.isArray(raw?.structure)
+        ? raw.structure
+        : buildStructureFromLegacy(raw?.customItems, raw?.removedItems);
     return {
-        entries: x?.entries ?? {},
-        options: x?.options ?? {},
-        customItems: x?.customItems ?? {},
-        removedItems: x?.removedItems ?? [],
-        deleted: x?.deleted ?? []
+        structure,
+        structureUpdatedAt: raw?.structureUpdatedAt ?? EPOCH,
+        entries: raw?.entries ?? {},
+        options: raw?.options ?? {},
+        deleted: raw?.deleted ?? []
+    };
+}
+
+// Remove selection/due/option data for a set of item ids (used on delete).
+function pruneData(doc: Doc, removeIds: Set<string>): Pick<Doc, 'entries' | 'options'> {
+    const entries: Record<string, BlameEntry> = {};
+    for (const [k, v] of Object.entries(doc.entries)) {
+        const base = k.endsWith(DUE_SUFFIX) ? k.slice(0, -DUE_SUFFIX.length) : k;
+        if (!removeIds.has(base)) entries[k] = v;
+    }
+    const options: Record<string, OptionDef[]> = {};
+    for (const [k, v] of Object.entries(doc.options)) if (!removeIds.has(k)) options[k] = v;
+    return { entries, options };
+}
+
+function cloneSectionWithNewIds(section: ChecklistSection): ChecklistSection {
+    return {
+        id: genId('section'),
+        title: `${section.title || 'Group'} (copy)`,
+        note: section.note,
+        subsections: section.subsections.map((ss) => ({
+            id: genId('group'),
+            title: ss.title,
+            items: ss.items.map((it) => ({ id: genId('item'), label: it.label, note: it.note, type: it.type }))
+        }))
     };
 }
 
@@ -99,10 +142,6 @@ function relativeTime(iso: string) {
     }
 }
 
-function getAllBaseItems(sections: ChecklistSection[]) {
-    return sections.flatMap((s) => s.subsections.flatMap((ss) => ss.items));
-}
-
 // ─── Shared input styles ──────────────────────────────────────────────────────
 
 const sxTextField = {
@@ -113,6 +152,7 @@ const sxTextField = {
     '& .MuiInputBase-input::placeholder': { color: C.muted, opacity: 1 }
 };
 
+// Borderless-until-hover field used for filled item names / option labels.
 const sxLabelField = {
     '& .MuiInputBase-input': { color: C.sand, fontSize: '0.875rem', fontWeight: 500 },
     '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
@@ -122,13 +162,39 @@ const sxLabelField = {
     '& .MuiInputBase-root': { px: 0.5 }
 };
 
+// Empty item-name field: clearly an input awaiting a name (dashed aqua border).
+const sxLabelFieldEmpty = {
+    '& .MuiInputBase-input': { color: C.sand, fontSize: '0.875rem', fontWeight: 500 },
+    '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,255,255,0.05)', borderRadius: 1 },
+    '& .MuiOutlinedInput-notchedOutline': { borderColor: C.aqua, borderStyle: 'dashed' },
+    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: C.aqua },
+    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: C.aqua, borderStyle: 'solid' },
+    '& .MuiInputBase-input::placeholder': { color: C.aqua, opacity: 0.85 }
+};
+
+const sxNoteField = {
+    '& .MuiInputBase-input': { color: C.muted, fontSize: '0.73rem', fontStyle: 'italic' },
+    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#555' },
+    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#555' },
+    '& .MuiInputBase-input::placeholder': { color: '#666', opacity: 1 },
+    '& .MuiInputBase-root': { px: 0.5 }
+};
+
+const sxGroupTitle = {
+    '& .MuiInputBase-input': { color: C.subLabel, fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', py: 0.25 },
+    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+    '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#555' },
+    '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: C.aqua },
+    '& .MuiInputBase-input::placeholder': { color: C.muted, opacity: 1 }
+};
+
 // ─── Small presentational pieces ──────────────────────────────────────────────
 
-function BlameChip({ entry, prefix }: { entry: BlameEntry | undefined; prefix?: string }) {
+function BlameChip({ entry }: { entry: BlameEntry | undefined }) {
     if (!entry || !entry.value.trim()) return null;
     return (
         <Typography sx={{ color: '#6b7280', fontSize: '0.68rem', mt: 0.4, lineHeight: 1.2 }}>
-            {prefix}
             {entry.editedBy} &middot; {relativeTime(entry.editedAt)}
         </Typography>
     );
@@ -136,13 +202,7 @@ function BlameChip({ entry, prefix }: { entry: BlameEntry | undefined; prefix?: 
 
 function YesNoToggle({ value, onChange }: { value: string; onChange: (v: string) => void }) {
     return (
-        <ToggleButtonGroup
-            value={value}
-            exclusive
-            onChange={(_, v) => v !== null && onChange(v)}
-            size="small"
-            sx={{ flexShrink: 0 }}
-        >
+        <ToggleButtonGroup value={value} exclusive onChange={(_, v) => v !== null && onChange(v)} size="small" sx={{ flexShrink: 0 }}>
             {['Yes', 'No', 'TBD'].map((opt) => (
                 <ToggleButton
                     key={opt}
@@ -153,12 +213,7 @@ function YesNoToggle({ value, onChange }: { value: string; onChange: (v: string)
                         fontSize: '0.75rem',
                         px: 1.5,
                         py: 0.5,
-                        '&.Mui-selected': {
-                            color: C.card,
-                            bgcolor: C.aqua,
-                            borderColor: C.aqua,
-                            '&:hover': { bgcolor: C.aqua }
-                        }
+                        '&.Mui-selected': { color: C.card, bgcolor: C.aqua, borderColor: C.aqua, '&:hover': { bgcolor: C.aqua } }
                     }}
                 >
                     {opt}
@@ -187,14 +242,7 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
 
 // ─── Link previews ────────────────────────────────────────────────────────────
 
-type LinkPreviewData = {
-    url: string;
-    image?: string;
-    title?: string;
-    description?: string;
-    siteName?: string;
-    error?: string;
-};
+type LinkPreviewData = { url: string; image?: string; title?: string; description?: string; siteName?: string; error?: string };
 
 const URL_RE = /https?:\/\/[^\s)]+/gi;
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
@@ -210,7 +258,6 @@ function useDebounced<T>(value: T, ms: number): T {
 
 function extractUrls(text: string): string[] {
     const matches = text.match(URL_RE) ?? [];
-    // de-dupe while preserving order, trim trailing punctuation
     const seen = new Set<string>();
     const out: string[] = [];
     for (let m of matches) {
@@ -224,11 +271,10 @@ function extractUrls(text: string): string[] {
 }
 
 function LinkPreview({ url }: { url: string }) {
-    const { data, isValidating } = useSWR<LinkPreviewData>(
-        `/api/link-preview?url=${encodeURIComponent(url)}`,
-        fetcher,
-        { revalidateOnFocus: false, dedupingInterval: 1000 * 60 * 60 }
-    );
+    const { data, isValidating } = useSWR<LinkPreviewData>(`/api/link-preview?url=${encodeURIComponent(url)}`, fetcher, {
+        revalidateOnFocus: false,
+        dedupingInterval: 1000 * 60 * 60
+    });
 
     const host = (() => {
         try {
@@ -238,8 +284,6 @@ function LinkPreview({ url }: { url: string }) {
         }
     })();
 
-    // Always render a clickable card that opens in a new tab — even while the
-    // preview is still loading or if it has no image — so the link is always usable.
     const loading = !data && isValidating;
     const title = data?.title || host;
     const subtitle = data?.siteName || host;
@@ -308,15 +352,15 @@ function LinkPreviews({ text }: { text: string }) {
     );
 }
 
-// ─── Item row (shared by base + custom items) ─────────────────────────────────
+// ─── Item row ─────────────────────────────────────────────────────────────────
 
 type ItemRowProps = {
-    itemId: string;
-    labelNode: ReactNode;
-    type?: ItemType;
+    item: ChecklistItem;
     valueEntry: BlameEntry | undefined;
     dueEntry: BlameEntry | undefined;
     options: OptionDef[];
+    onSetLabel: (label: string) => void;
+    onSetNote: (note: string | undefined) => void;
     onSetValue: (value: string) => void;
     onSetDue: (value: string) => void;
     onAddOption: () => void;
@@ -324,63 +368,83 @@ type ItemRowProps = {
     onRemoveOption: (optionId: string) => void;
     onChooseOption: (label: string) => void;
     onDelete: () => void;
-    deleteTooltip: string;
 };
 
 function ItemRow({
-    itemId,
-    labelNode,
-    type,
+    item,
     valueEntry,
     dueEntry,
     options,
+    onSetLabel,
+    onSetNote,
     onSetValue,
     onSetDue,
     onAddOption,
     onUpdateOption,
     onRemoveOption,
     onChooseOption,
-    onDelete,
-    deleteTooltip
+    onDelete
 }: ItemRowProps) {
     const value = valueEntry?.value ?? '';
+    const nameEmpty = !item.label.trim();
 
     return (
-        <Box
-            className={styles.itemRow}
-            sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, flexWrap: { xs: 'wrap', md: 'nowrap' } }}
-        >
-            {/* Label */}
-            <Box sx={{ flex: '0 0 220px', minWidth: 140 }}>{labelNode}</Box>
+        <Box className={styles.itemRow} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
+            {/* Item name + note (editable) */}
+            <Box sx={{ flex: '0 0 230px', minWidth: 160 }}>
+                <TextField
+                    value={item.label}
+                    onChange={(e) => onSetLabel(e.target.value)}
+                    placeholder="Name this item"
+                    size="small"
+                    fullWidth
+                    multiline
+                    maxRows={3}
+                    sx={nameEmpty ? sxLabelFieldEmpty : sxLabelField}
+                />
+                {item.note !== undefined ? (
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.25, mt: 0.25 }}>
+                        <TextField
+                            value={item.note}
+                            onChange={(e) => onSetNote(e.target.value)}
+                            placeholder="Add a note…"
+                            size="small"
+                            fullWidth
+                            multiline
+                            maxRows={4}
+                            sx={sxNoteField}
+                        />
+                        <Tooltip title="Remove note" placement="top">
+                            <IconButton size="small" onClick={() => onSetNote(undefined)} sx={{ p: 0.25, mt: 0.25, color: '#555', '&:hover': { color: C.danger } }}>
+                                <DeleteOutlineIcon sx={{ fontSize: 14 }} />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
+                ) : (
+                    <Button
+                        size="small"
+                        onClick={() => onSetNote('')}
+                        disableRipple
+                        sx={{ color: '#6b7280', fontSize: '0.68rem', textTransform: 'none', px: 0.5, minWidth: 0, mt: 0.25, '&:hover': { color: C.aqua, bgcolor: 'transparent' } }}
+                    >
+                        + note
+                    </Button>
+                )}
+            </Box>
 
-            {/* Main column: selection · options · due */}
+            {/* Selection · options · due */}
             <Box sx={{ flex: 1, minWidth: 200 }}>
-                {/* Selection */}
-                {type === 'yes_no' ? (
+                {item.type === 'yes_no' ? (
                     <YesNoToggle value={value} onChange={onSetValue} />
                 ) : (
-                    <TextField
-                        value={value}
-                        onChange={(e) => onSetValue(e.target.value)}
-                        placeholder="Your selection..."
-                        size="small"
-                        multiline
-                        maxRows={3}
-                        fullWidth
-                        sx={sxTextField}
-                    />
+                    <TextField value={value} onChange={(e) => onSetValue(e.target.value)} placeholder="Your selection..." size="small" multiline maxRows={3} fullWidth sx={sxTextField} />
                 )}
                 <BlameChip entry={valueEntry} />
-                {type !== 'yes_no' && <LinkPreviews text={value} />}
+                {item.type !== 'yes_no' && <LinkPreviews text={value} />}
 
-                {/* Options (candidates) */}
                 {options.length > 0 && (
                     <Box sx={{ mt: 1.25 }}>
-                        <Typography
-                            sx={{ color: C.muted, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}
-                        >
-                            Options
-                        </Typography>
+                        <Typography sx={{ color: C.muted, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 0.5 }}>Options</Typography>
                         <Stack spacing={0.75}>
                             {options.map((o) => {
                                 const chosen = !!o.label.trim() && value === o.label;
@@ -394,34 +458,19 @@ function ItemRow({
                                                     disabled={!o.label.trim()}
                                                     sx={{ p: 0.5, mt: 0.25, color: chosen ? C.aqua : '#666', '&:hover': { color: C.aqua } }}
                                                 >
-                                                    {chosen ? (
-                                                        <RadioButtonCheckedIcon sx={{ fontSize: 18 }} />
-                                                    ) : (
-                                                        <RadioButtonUncheckedIcon sx={{ fontSize: 18 }} />
-                                                    )}
+                                                    {chosen ? <RadioButtonCheckedIcon sx={{ fontSize: 18 }} /> : <RadioButtonUncheckedIcon sx={{ fontSize: 18 }} />}
                                                 </IconButton>
                                             </span>
                                         </Tooltip>
                                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                                            <TextField
-                                                value={o.label}
-                                                onChange={(e) => onUpdateOption(o.id, e.target.value)}
-                                                placeholder="Option…"
-                                                size="small"
-                                                fullWidth
-                                                sx={sxLabelField}
-                                            />
+                                            <TextField value={o.label} onChange={(e) => onUpdateOption(o.id, e.target.value)} placeholder="Option…" size="small" fullWidth sx={sxLabelField} />
                                             <Typography sx={{ color: '#6b7280', fontSize: '0.66rem', mt: 0.2, lineHeight: 1.2 }}>
                                                 added by {o.addedBy} &middot; {relativeTime(o.addedAt)}
                                             </Typography>
                                             <LinkPreviews text={o.label} />
                                         </Box>
                                         <Tooltip title="Remove option" placement="top">
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => onRemoveOption(o.id)}
-                                                sx={{ p: 0.5, mt: 0.25, color: '#555', '&:hover': { color: C.danger } }}
-                                            >
+                                            <IconButton size="small" onClick={() => onRemoveOption(o.id)} sx={{ p: 0.5, mt: 0.25, color: '#555', '&:hover': { color: C.danger } }}>
                                                 <DeleteOutlineIcon sx={{ fontSize: 16 }} />
                                             </IconButton>
                                         </Tooltip>
@@ -442,7 +491,6 @@ function ItemRow({
                     Add option
                 </Button>
 
-                {/* Due date */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, flexWrap: 'wrap' }}>
                     <EventOutlinedIcon sx={{ fontSize: 16, color: C.muted }} />
                     <Typography sx={{ color: C.muted, fontSize: '0.72rem' }}>Due</Typography>
@@ -461,14 +509,8 @@ function ItemRow({
                 </Box>
             </Box>
 
-            {/* Delete row */}
-            <Tooltip title={deleteTooltip} placement="top">
-                <IconButton
-                    className={styles.removeBtn}
-                    size="small"
-                    onClick={onDelete}
-                    sx={{ color: '#555', flexShrink: 0, mt: 0.25, '&:hover': { color: C.danger } }}
-                >
+            <Tooltip title="Delete this item" placement="top">
+                <IconButton className={styles.removeBtn} size="small" onClick={onDelete} sx={{ color: '#555', flexShrink: 0, mt: 0.25, '&:hover': { color: C.danger } }}>
                     <DeleteOutlineIcon fontSize="small" />
                 </IconButton>
             </Tooltip>
@@ -479,7 +521,7 @@ function ItemRow({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AduCollaborator() {
-    const [state, setState] = useState<PersistedState>(EMPTY);
+    const [state, setState] = useState<Doc>(makeInitial);
     const [identity, setIdentity] = useState('');
     const [password, setPassword] = useState('');
     const [loaded, setLoaded] = useState(false);
@@ -487,6 +529,11 @@ export default function AduCollaborator() {
     const [snackbar, setSnackbar] = useState('');
     const [pwDialogOpen, setPwDialogOpen] = useState(false);
     const [pwInput, setPwInput] = useState('');
+    const [editingSection, setEditingSection] = useState<string | null>(null);
+    const [dragId, setDragId] = useState<string | null>(null); // group being dragged
+    const [overId, setOverId] = useState<string | null>(null); // drop target group
+    const [overAfter, setOverAfter] = useState(false); // drop below (vs above) the target
+    const [armed, setArmed] = useState<string | null>(null); // group whose drag handle is held
 
     const dirtyRef = useRef(false);
     const stateRef = useRef(state);
@@ -503,7 +550,7 @@ export default function AduCollaborator() {
     useEffect(() => {
         try {
             const cached = localStorage.getItem(CACHE_KEY);
-            if (cached) setState(normalize(JSON.parse(cached)));
+            if (cached) setState(normalizeDoc(JSON.parse(cached)));
             const id = localStorage.getItem(IDENTITY_KEY);
             if (id) setIdentity(id);
             const pw = sessionStorage.getItem(PASSWORD_KEY);
@@ -513,7 +560,7 @@ export default function AduCollaborator() {
         fetch(API)
             .then((r) => (r.ok ? r.json() : Promise.reject()))
             .then((doc) => {
-                setState(normalize(doc));
+                setState(normalizeDoc(doc));
                 setSaveStatus('idle');
             })
             .catch(() => setSaveStatus('offline'))
@@ -594,7 +641,7 @@ export default function AduCollaborator() {
                 .then((r) => (r.ok ? r.json() : Promise.reject()))
                 .then((doc) => {
                     if (dirtyRef.current || pendingSave.current) return;
-                    setState(normalize(doc));
+                    setState(normalizeDoc(doc));
                     if (saveStatus === 'offline') setSaveStatus('idle');
                 })
                 .catch(() => {});
@@ -602,13 +649,10 @@ export default function AduCollaborator() {
         return () => clearInterval(iv);
     }, [saveStatus]);
 
-    // ── Mutations ──
+    // ── Selection data mutations (do NOT bump structureUpdatedAt) ──
     const setEntry = useCallback(
         (id: string, value: string) => {
-            setState((prev) => ({
-                ...prev,
-                entries: { ...prev.entries, [id]: { value, editedBy: who(), editedAt: new Date().toISOString() } }
-            }));
+            setState((prev) => ({ ...prev, entries: { ...prev.entries, [id]: { value, editedBy: who(), editedAt: now() } } }));
             scheduleSave();
         },
         [who, scheduleSave]
@@ -618,11 +662,8 @@ export default function AduCollaborator() {
 
     const addOption = useCallback(
         (itemId: string) => {
-            const opt: OptionDef = { id: `opt-${itemId}-${Date.now()}`, label: '', addedBy: who(), addedAt: new Date().toISOString() };
-            setState((prev) => ({
-                ...prev,
-                options: { ...prev.options, [itemId]: [...(prev.options[itemId] ?? []), opt] }
-            }));
+            const opt: OptionDef = { id: genId('opt'), label: '', addedBy: who(), addedAt: now() };
+            setState((prev) => ({ ...prev, options: { ...prev.options, [itemId]: [...(prev.options[itemId] ?? []), opt] } }));
             scheduleSave();
         },
         [who, scheduleSave]
@@ -633,12 +674,10 @@ export default function AduCollaborator() {
             setState((prev) => {
                 const opts = prev.options[itemId] ?? [];
                 const old = opts.find((o) => o.id === optionId)?.label ?? '';
-                const stamp = { addedBy: who(), addedAt: new Date().toISOString() };
-                const nextOpts = opts.map((o) => (o.id === optionId ? { ...o, label, ...stamp } : o));
-                // Keep the selection in sync if this option was the chosen one
+                const nextOpts = opts.map((o) => (o.id === optionId ? { ...o, label, addedBy: who(), addedAt: now() } : o));
                 let entries = prev.entries;
                 if (old && prev.entries[itemId]?.value === old) {
-                    entries = { ...entries, [itemId]: { value: label, editedBy: who(), editedAt: new Date().toISOString() } };
+                    entries = { ...entries, [itemId]: { value: label, editedBy: who(), editedAt: now() } };
                 }
                 return { ...prev, options: { ...prev.options, [itemId]: nextOpts }, entries };
             });
@@ -659,65 +698,161 @@ export default function AduCollaborator() {
         [scheduleSave]
     );
 
-    const removeBaseItem = useCallback(
-        (itemId: string) => {
-            setState((prev) => ({ ...prev, removedItems: [...prev.removedItems, itemId] }));
+    // ── Structure mutations (bump structureUpdatedAt) ──
+    const mutateStructure = useCallback(
+        (producer: (s: ChecklistSection[]) => ChecklistSection[]) => {
+            setState((prev) => ({ ...prev, structure: producer(prev.structure), structureUpdatedAt: now() }));
             scheduleSave();
         },
         [scheduleSave]
     );
 
-    const restoreBaseItem = useCallback(
-        (itemId: string) => {
-            setState((prev) => ({ ...prev, removedItems: prev.removedItems.filter((id) => id !== itemId) }));
-            scheduleSave();
+    const updateItem = useCallback(
+        (sectionId: string, subId: string, itemId: string, patch: Partial<ChecklistItem>) => {
+            mutateStructure((s) =>
+                s.map((sec) =>
+                    sec.id !== sectionId
+                        ? sec
+                        : {
+                              ...sec,
+                              subsections: sec.subsections.map((ss) =>
+                                  ss.id !== subId ? ss : { ...ss, items: ss.items.map((it) => (it.id === itemId ? { ...it, ...patch } : it)) }
+                              )
+                          }
+                )
+            );
         },
-        [scheduleSave]
+        [mutateStructure]
     );
 
-    const addCustomItem = useCallback(
-        (subsectionId: string) => {
-            const newItem: CustomItemDef = { id: `custom-${subsectionId}-${Date.now()}`, label: '' };
-            setState((prev) => ({
-                ...prev,
-                customItems: { ...prev.customItems, [subsectionId]: [...(prev.customItems[subsectionId] ?? []), newItem] }
-            }));
-            scheduleSave();
+    const addItem = useCallback(
+        (sectionId: string, subId: string) => {
+            const item: ChecklistItem = { id: genId('item'), label: '' };
+            mutateStructure((s) =>
+                s.map((sec) =>
+                    sec.id !== sectionId ? sec : { ...sec, subsections: sec.subsections.map((ss) => (ss.id !== subId ? ss : { ...ss, items: [...ss.items, item] })) }
+                )
+            );
         },
-        [scheduleSave]
+        [mutateStructure]
     );
 
-    const updateCustomLabel = useCallback(
-        (subsectionId: string, itemId: string, label: string) => {
-            setState((prev) => ({
-                ...prev,
-                customItems: {
-                    ...prev.customItems,
-                    [subsectionId]: (prev.customItems[subsectionId] ?? []).map((it) => (it.id === itemId ? { ...it, label } : it))
-                }
-            }));
-            scheduleSave();
-        },
-        [scheduleSave]
-    );
-
-    const removeCustomItem = useCallback(
-        (subsectionId: string, itemId: string) => {
+    const deleteItem = useCallback(
+        (sectionId: string, subId: string, item: ChecklistItem) => {
+            if ((stateRef.current.entries[item.id]?.value ?? '').trim()) {
+                if (!window.confirm(`Delete "${item.label || 'this item'}" and its selection?`)) return;
+            }
             setState((prev) => {
-                const next = {
-                    ...prev,
-                    customItems: { ...prev.customItems, [subsectionId]: (prev.customItems[subsectionId] ?? []).filter((it) => it.id !== itemId) }
-                };
-                const { [itemId]: _v, ...entries } = next.entries;
-                const { [itemId + DUE_SUFFIX]: _d, ...entries2 } = entries;
-                const { [itemId]: _o, ...options } = next.options;
-                const deleted = next.deleted.includes(itemId) ? next.deleted : [...next.deleted, itemId];
-                return { ...next, entries: entries2, options, deleted };
+                const structure = prev.structure.map((sec) =>
+                    sec.id !== sectionId ? sec : { ...sec, subsections: sec.subsections.map((ss) => (ss.id !== subId ? ss : { ...ss, items: ss.items.filter((it) => it.id !== item.id) })) }
+                );
+                return { ...prev, structure, ...pruneData(prev, new Set([item.id])), structureUpdatedAt: now() };
             });
             scheduleSave();
         },
         [scheduleSave]
     );
+
+    const addSubsection = useCallback(
+        (sectionId: string) => {
+            mutateStructure((s) => s.map((sec) => (sec.id !== sectionId ? sec : { ...sec, subsections: [...sec.subsections, { id: genId('group'), title: '', items: [] }] })));
+        },
+        [mutateStructure]
+    );
+
+    const updateSubsectionTitle = useCallback(
+        (sectionId: string, subId: string, title: string) => {
+            mutateStructure((s) => s.map((sec) => (sec.id !== sectionId ? sec : { ...sec, subsections: sec.subsections.map((ss) => (ss.id === subId ? { ...ss, title } : ss)) })));
+        },
+        [mutateStructure]
+    );
+
+    const deleteSubsection = useCallback(
+        (sectionId: string, subId: string) => {
+            const sec = stateRef.current.structure.find((s) => s.id === sectionId);
+            const sub = sec?.subsections.find((x) => x.id === subId);
+            if ((sub?.items.length ?? 0) > 0 && !window.confirm(`Delete the "${sub?.title || 'untitled'}" group and its ${sub?.items.length} item(s)?`)) return;
+            const ids = new Set((sub?.items ?? []).map((it) => it.id));
+            setState((prev) => {
+                const structure = prev.structure.map((s) => (s.id !== sectionId ? s : { ...s, subsections: s.subsections.filter((x) => x.id !== subId) }));
+                return { ...prev, structure, ...pruneData(prev, ids), structureUpdatedAt: now() };
+            });
+            scheduleSave();
+        },
+        [scheduleSave]
+    );
+
+    const updateSection = useCallback(
+        (sectionId: string, patch: Partial<ChecklistSection>) => {
+            mutateStructure((s) => s.map((sec) => (sec.id === sectionId ? { ...sec, ...patch } : sec)));
+        },
+        [mutateStructure]
+    );
+
+    const addSection = useCallback(() => {
+        mutateStructure((s) => [...s, { id: genId('section'), title: '', subsections: [{ id: genId('group'), title: '', items: [] }] }]);
+        setSnackbar('Added a new group at the bottom — give it a name.');
+    }, [mutateStructure]);
+
+    const duplicateSection = useCallback(
+        (sectionId: string) => {
+            mutateStructure((s) => {
+                const idx = s.findIndex((x) => x.id === sectionId);
+                if (idx < 0) return s;
+                const copy = [...s];
+                copy.splice(idx + 1, 0, cloneSectionWithNewIds(s[idx]));
+                return copy;
+            });
+            setSnackbar('Duplicated the group (item names copied; selections start fresh).');
+        },
+        [mutateStructure]
+    );
+
+    const deleteSection = useCallback(
+        (sectionId: string) => {
+            const sec = stateRef.current.structure.find((s) => s.id === sectionId);
+            const itemCount = sec?.subsections.reduce((n, ss) => n + ss.items.length, 0) ?? 0;
+            if (!window.confirm(`Delete the entire "${sec?.title || 'untitled'}" group and its ${itemCount} item(s)?`)) return;
+            const ids = new Set((sec?.subsections ?? []).flatMap((ss) => ss.items.map((it) => it.id)));
+            setState((prev) => {
+                const structure = prev.structure.filter((s) => s.id !== sectionId);
+                return { ...prev, structure, ...pruneData(prev, ids), structureUpdatedAt: now() };
+            });
+            scheduleSave();
+        },
+        [scheduleSave]
+    );
+
+    // Reorder a group: drop `sourceId` before or after `targetId`.
+    const moveSection = useCallback(
+        (sourceId: string, targetId: string, place: 'before' | 'after') => {
+            if (sourceId === targetId) return;
+            mutateStructure((s) => {
+                const without = s.filter((sec) => sec.id !== sourceId);
+                const moved = s.find((sec) => sec.id === sourceId);
+                let idx = without.findIndex((sec) => sec.id === targetId);
+                if (!moved || idx < 0) return s;
+                if (place === 'after') idx += 1;
+                const next = [...without];
+                next.splice(idx, 0, moved);
+                return next;
+            });
+        },
+        [mutateStructure]
+    );
+
+    // The drag handle "arms" a group as draggable on mouse-down; disarm on release
+    // so item fields inside a group stay normally selectable/editable.
+    useEffect(() => {
+        if (!armed) return;
+        const clear = () => setArmed(null);
+        window.addEventListener('mouseup', clear);
+        window.addEventListener('dragend', clear);
+        return () => {
+            window.removeEventListener('mouseup', clear);
+            window.removeEventListener('dragend', clear);
+        };
+    }, [armed]);
 
     // ── Password dialog ──
     const submitPassword = () => {
@@ -730,8 +865,6 @@ export default function AduCollaborator() {
     };
 
     // ── Manual refresh ──
-    // Flush any pending local edits first so a refresh can't pull back changes
-    // (e.g. deletions) that haven't been saved to the server yet.
     const refresh = async () => {
         if (dirtyRef.current || pendingSave.current) {
             if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -741,7 +874,7 @@ export default function AduCollaborator() {
             const r = await fetch(API);
             if (!r.ok) throw new Error();
             const doc = await r.json();
-            setState(normalize(doc));
+            setState(normalizeDoc(doc));
             dirtyRef.current = false;
             setSaveStatus('idle');
             setSnackbar('Refreshed with the latest saved version.');
@@ -750,15 +883,11 @@ export default function AduCollaborator() {
         }
     };
 
-    // ── Progress ──
-    // A custom item counts toward the total once it's been "used" — i.e. it has a
-    // label (its name) OR a value (a selection) — so it counts regardless of which
-    // field was filled in first.
-    const customCounts = (it: CustomItemDef) => !!(it.label.trim() || (state.entries[it.id]?.value ?? '').trim());
-    const allBaseItems = getAllBaseItems(aduChecklist).filter((it) => !state.removedItems.includes(it.id));
-    const allCustomItems = Object.values(state.customItems).flat().filter(customCounts);
-    const totalItems = allBaseItems.length + allCustomItems.length;
-    const filledItems = [...allBaseItems, ...allCustomItems].filter((it) => (state.entries[it.id]?.value ?? '').trim()).length;
+    // ── Progress (items count once they have a name or a value) ──
+    const counts = (it: ChecklistItem) => !!(it.label.trim() || (state.entries[it.id]?.value ?? '').trim());
+    const allItems = state.structure.flatMap((s) => s.subsections.flatMap((ss) => ss.items)).filter(counts);
+    const totalItems = allItems.length;
+    const filledItems = allItems.filter((it) => (state.entries[it.id]?.value ?? '').trim()).length;
     const progress = totalItems > 0 ? (filledItems / totalItems) * 100 : 0;
 
     const copyLink = async () => {
@@ -784,6 +913,8 @@ export default function AduCollaborator() {
         setSnackbar('Downloaded a JSON backup of the current checklist.');
     };
 
+    const btnGhost = { color: C.sand, borderColor: '#555', '&:hover': { borderColor: C.sand, bgcolor: 'rgba(244,241,201,0.06)' } };
+
     // ── Render ──
     return (
         <Box className={styles.root}>
@@ -793,9 +924,7 @@ export default function AduCollaborator() {
                         <Typography variant="h4" sx={{ color: C.aqua, fontWeight: 700, mb: 0.5 }}>
                             {TITLE}
                         </Typography>
-                        <Typography sx={{ color: C.muted, fontSize: '0.9rem' }}>
-                            Los Angeles ADU Project &mdash; a shared, auto-saving checklist for you and your PM.
-                        </Typography>
+                        <Typography sx={{ color: C.muted, fontSize: '0.9rem' }}>Los Angeles ADU Project &mdash; a shared, auto-saving checklist for you and your PM.</Typography>
                     </Box>
 
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
@@ -824,24 +953,20 @@ export default function AduCollaborator() {
                             {filledItems} / {totalItems} items
                         </Typography>
                     </Box>
-                    <LinearProgress
-                        variant="determinate"
-                        value={progress}
-                        sx={{ height: 7, borderRadius: 4, bgcolor: '#4a4a4a', '& .MuiLinearProgress-bar': { bgcolor: C.aqua, borderRadius: 4 } }}
-                    />
+                    <LinearProgress variant="determinate" value={progress} sx={{ height: 7, borderRadius: 4, bgcolor: '#4a4a4a', '& .MuiLinearProgress-bar': { bgcolor: C.aqua, borderRadius: 4 } }} />
                 </Box>
 
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
                     <Button variant="outlined" size="small" startIcon={<ContentCopyIcon />} onClick={copyLink} sx={{ color: C.aqua, borderColor: C.aqua, '&:hover': { borderColor: C.aqua, bgcolor: 'rgba(0,255,255,0.08)' } }}>
                         Copy Page Link
                     </Button>
-                    <Button variant="outlined" size="small" startIcon={<SyncIcon />} onClick={refresh} sx={{ color: C.sand, borderColor: '#555', '&:hover': { borderColor: C.sand, bgcolor: 'rgba(244,241,201,0.06)' } }}>
+                    <Button variant="outlined" size="small" startIcon={<SyncIcon />} onClick={refresh} sx={btnGhost}>
                         Refresh
                     </Button>
-                    <Button variant="outlined" size="small" startIcon={<PrintIcon />} onClick={() => window.print()} sx={{ color: C.sand, borderColor: '#555', '&:hover': { borderColor: C.sand, bgcolor: 'rgba(244,241,201,0.06)' } }}>
+                    <Button variant="outlined" size="small" startIcon={<PrintIcon />} onClick={() => window.print()} sx={btnGhost}>
                         Print
                     </Button>
-                    <Button variant="outlined" size="small" startIcon={<FileDownloadOutlinedIcon />} onClick={exportJson} sx={{ color: C.sand, borderColor: '#555', '&:hover': { borderColor: C.sand, bgcolor: 'rgba(244,241,201,0.06)' } }}>
+                    <Button variant="outlined" size="small" startIcon={<FileDownloadOutlinedIcon />} onClick={exportJson} sx={btnGhost}>
                         Backup
                     </Button>
                     <Box sx={{ ml: 'auto' }}>
@@ -851,147 +976,215 @@ export default function AduCollaborator() {
             </Box>
 
             <Box className={styles.sections}>
-                {aduChecklist.map((section) => {
-                    const baseItems = section.subsections.flatMap((ss) => ss.items);
-                    const visibleBase = baseItems.filter((it) => !state.removedItems.includes(it.id));
-                    const customForSection = section.subsections.flatMap((ss) => (state.customItems[ss.id] ?? []).filter(customCounts));
-                    const allVisible = [...visibleBase, ...customForSection];
-                    const sectionFilled = allVisible.filter((it) => (state.entries[it.id]?.value ?? '').trim()).length;
-                    const sectionTotal = visibleBase.length + customForSection.length;
-                    const sectionComplete = sectionFilled > 0 && sectionFilled === sectionTotal;
+                {state.structure.map((section) => {
+                    const sectionItems = section.subsections.flatMap((ss) => ss.items).filter(counts);
+                    const sectionFilled = sectionItems.filter((it) => (state.entries[it.id]?.value ?? '').trim()).length;
+                    const sectionTotal = sectionItems.length;
+                    const sectionComplete = sectionTotal > 0 && sectionFilled === sectionTotal;
 
                     return (
-                        <Accordion
+                        <Box
                             key={section.id}
-                            disableGutters
-                            sx={{ bgcolor: C.card, color: C.sand, mb: 1, border: `1px solid ${C.cardBorder}`, borderRadius: '8px !important', '&:before': { display: 'none' }, '&.Mui-expanded': { mb: 1 } }}
+                            draggable={armed === section.id}
+                            onDragStart={(e) => {
+                                setDragId(section.id);
+                                e.dataTransfer.effectAllowed = 'move';
+                            }}
+                            onDragEnd={() => {
+                                setDragId(null);
+                                setOverId(null);
+                                setArmed(null);
+                            }}
+                            onDragOver={(e) => {
+                                if (dragId && dragId !== section.id) {
+                                    e.preventDefault();
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const after = e.clientY > rect.top + rect.height / 2;
+                                    if (overId !== section.id || overAfter !== after) {
+                                        setOverId(section.id);
+                                        setOverAfter(after);
+                                    }
+                                }
+                            }}
+                            onDrop={(e) => {
+                                e.preventDefault();
+                                if (dragId) moveSection(dragId, section.id, overAfter ? 'after' : 'before');
+                                setDragId(null);
+                                setOverId(null);
+                                setArmed(null);
+                            }}
+                            sx={{
+                                opacity: dragId === section.id ? 0.4 : 1,
+                                borderTop: overId === section.id && dragId !== section.id && !overAfter ? `2px solid ${C.aqua}` : '2px solid transparent',
+                                borderBottom: overId === section.id && dragId !== section.id && overAfter ? `2px solid ${C.aqua}` : '2px solid transparent',
+                                borderRadius: '8px'
+                            }}
                         >
-                            <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: C.aqua }} />} sx={{ px: 2.5, minHeight: 52 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%', pr: 1 }}>
-                                    <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: C.sand, flex: 1 }}>{section.title}</Typography>
+                        <Accordion disableGutters sx={{ bgcolor: C.card, color: C.sand, mb: 1, border: `1px solid ${C.cardBorder}`, borderRadius: '8px !important', '&:before': { display: 'none' }, '&.Mui-expanded': { mb: 1 } }}>
+                            <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: C.aqua }} />} sx={{ px: 2, minHeight: 52 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', pr: 1 }}>
+                                    <Box
+                                        onMouseDown={() => setArmed(section.id)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        title="Drag to reorder group"
+                                        sx={{ display: 'flex', alignItems: 'center', cursor: 'grab', color: '#777', '&:hover': { color: C.aqua }, '&:active': { cursor: 'grabbing' }, mr: 0.5, touchAction: 'none' }}
+                                    >
+                                        <DragIndicatorIcon sx={{ fontSize: 20 }} />
+                                    </Box>
+                                    {editingSection === section.id ? (
+                                        <TextField
+                                            value={section.title}
+                                            onChange={(e) => updateSection(section.id, { title: e.target.value })}
+                                            placeholder="Group name"
+                                            size="small"
+                                            autoFocus
+                                            onClick={(e) => e.stopPropagation()}
+                                            onFocus={(e) => e.stopPropagation()}
+                                            onKeyDown={(e) => {
+                                                e.stopPropagation();
+                                                if (e.key === 'Enter' || e.key === 'Escape') setEditingSection(null);
+                                            }}
+                                            onBlur={() => setEditingSection(null)}
+                                            sx={{
+                                                flex: 1,
+                                                '& .MuiInputBase-input': { color: C.sand, fontSize: '1rem', fontWeight: 700, py: 0.5 },
+                                                '& .MuiOutlinedInput-notchedOutline': { borderColor: C.aqua },
+                                                '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: C.aqua },
+                                                '& .MuiInputBase-input::placeholder': { color: C.aqua, opacity: 0.85 }
+                                            }}
+                                        />
+                                    ) : (
+                                        <Typography sx={{ fontWeight: 700, fontSize: '1rem', color: section.title.trim() ? C.sand : C.muted, flex: 1 }}>
+                                            {section.title.trim() || 'Untitled group'}
+                                        </Typography>
+                                    )}
+
                                     {sectionComplete ? (
                                         <CheckCircleOutlineIcon sx={{ color: C.aqua, fontSize: 18 }} />
                                     ) : (
                                         <Chip label={`${sectionFilled}/${sectionTotal}`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: C.muted, fontWeight: 600, fontSize: '0.72rem', height: 22 }} />
                                     )}
+
+                                    <Tooltip title="Rename group" placement="top">
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditingSection(editingSection === section.id ? null : section.id);
+                                            }}
+                                            sx={{ color: editingSection === section.id ? C.aqua : '#888', '&:hover': { color: C.aqua } }}
+                                        >
+                                            <EditOutlinedIcon sx={{ fontSize: 18 }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Duplicate group" placement="top">
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                duplicateSection(section.id);
+                                            }}
+                                            sx={{ color: '#888', '&:hover': { color: C.aqua } }}
+                                        >
+                                            <ContentCopyIcon sx={{ fontSize: 17 }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Delete group" placement="top">
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                deleteSection(section.id);
+                                            }}
+                                            sx={{ color: '#888', '&:hover': { color: C.danger } }}
+                                        >
+                                            <DeleteOutlineIcon sx={{ fontSize: 18 }} />
+                                        </IconButton>
+                                    </Tooltip>
                                 </Box>
                             </AccordionSummary>
 
                             <AccordionDetails sx={{ px: 2.5, pb: 2.5, pt: 0 }}>
-                                {section.note && (
-                                    <Box sx={{ bgcolor: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.18)', borderRadius: 1.5, px: 2, py: 1, mb: 2 }}>
-                                        <Typography sx={{ color: C.muted, fontSize: '0.8rem', fontStyle: 'italic' }}>{section.note}</Typography>
+                                {/* Section note */}
+                                {section.note !== undefined ? (
+                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, bgcolor: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.18)', borderRadius: 1.5, px: 1.5, py: 0.5, mb: 2 }}>
+                                        <TextField value={section.note} onChange={(e) => updateSection(section.id, { note: e.target.value })} placeholder="Group note…" size="small" fullWidth multiline maxRows={4} sx={sxNoteField} />
+                                        <Tooltip title="Remove note" placement="top">
+                                            <IconButton size="small" onClick={() => updateSection(section.id, { note: undefined })} sx={{ p: 0.25, color: '#557', '&:hover': { color: C.danger } }}>
+                                                <DeleteOutlineIcon sx={{ fontSize: 14 }} />
+                                            </IconButton>
+                                        </Tooltip>
                                     </Box>
+                                ) : (
+                                    <Button size="small" onClick={() => updateSection(section.id, { note: '' })} disableRipple sx={{ color: '#6b7280', fontSize: '0.7rem', textTransform: 'none', px: 0, minWidth: 0, mb: 1.5, '&:hover': { color: C.aqua, bgcolor: 'transparent' } }}>
+                                        + group note
+                                    </Button>
                                 )}
 
-                                {section.subsections.map((subsection, ssIdx) => {
-                                    const removedInSub = subsection.items.filter((it) => state.removedItems.includes(it.id));
-                                    const customInSub = state.customItems[subsection.id] ?? [];
-
-                                    return (
-                                        <Box key={subsection.id} sx={{ mb: ssIdx < section.subsections.length - 1 ? 3 : 0 }}>
-                                            <Typography sx={{ color: C.subLabel, fontWeight: 600, fontSize: '0.75rem', mb: 1.5, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-                                                {subsection.title}
-                                            </Typography>
-
-                                            <Stack spacing={2}>
-                                                {/* Base items */}
-                                                {subsection.items
-                                                    .filter((it) => !state.removedItems.includes(it.id))
-                                                    .map((item) => (
-                                                        <ItemRow
-                                                            key={item.id}
-                                                            itemId={item.id}
-                                                            type={item.type}
-                                                            labelNode={
-                                                                <>
-                                                                    <Typography sx={{ color: C.sand, fontSize: '0.875rem', fontWeight: 500, lineHeight: 1.4, pt: item.note ? 0 : 0.75 }}>
-                                                                        {item.label}
-                                                                    </Typography>
-                                                                    {item.note && (
-                                                                        <Typography sx={{ color: C.muted, fontSize: '0.73rem', mt: 0.25, lineHeight: 1.4 }}>{item.note}</Typography>
-                                                                    )}
-                                                                </>
-                                                            }
-                                                            valueEntry={state.entries[item.id]}
-                                                            dueEntry={state.entries[item.id + DUE_SUFFIX]}
-                                                            options={state.options[item.id] ?? []}
-                                                            onSetValue={(v) => setEntry(item.id, v)}
-                                                            onSetDue={(v) => setDueDate(item.id, v)}
-                                                            onAddOption={() => addOption(item.id)}
-                                                            onUpdateOption={(oid, l) => updateOption(item.id, oid, l)}
-                                                            onRemoveOption={(oid) => removeOption(item.id, oid)}
-                                                            onChooseOption={(l) => setEntry(item.id, l)}
-                                                            onDelete={() => removeBaseItem(item.id)}
-                                                            deleteTooltip="Hide this item"
-                                                        />
-                                                    ))}
-
-                                                {/* Custom items */}
-                                                {customInSub.map((item) => (
-                                                    <ItemRow
-                                                        key={item.id}
-                                                        itemId={item.id}
-                                                        labelNode={
-                                                            <TextField
-                                                                value={item.label}
-                                                                onChange={(e) => updateCustomLabel(subsection.id, item.id, e.target.value)}
-                                                                placeholder="Name this item…"
-                                                                size="small"
-                                                                fullWidth
-                                                                sx={sxLabelField}
-                                                            />
-                                                        }
-                                                        valueEntry={state.entries[item.id]}
-                                                        dueEntry={state.entries[item.id + DUE_SUFFIX]}
-                                                        options={state.options[item.id] ?? []}
-                                                        onSetValue={(v) => setEntry(item.id, v)}
-                                                        onSetDue={(v) => setDueDate(item.id, v)}
-                                                        onAddOption={() => addOption(item.id)}
-                                                        onUpdateOption={(oid, l) => updateOption(item.id, oid, l)}
-                                                        onRemoveOption={(oid) => removeOption(item.id, oid)}
-                                                        onChooseOption={(l) => setEntry(item.id, l)}
-                                                        onDelete={() => removeCustomItem(subsection.id, item.id)}
-                                                        deleteTooltip="Delete this item"
-                                                    />
-                                                ))}
-                                            </Stack>
-
-                                            <Box sx={{ display: 'flex', alignItems: 'center', mt: 1.5, gap: 2, flexWrap: 'wrap' }}>
-                                                <Button
-                                                    size="small"
-                                                    startIcon={<AddIcon />}
-                                                    onClick={() => addCustomItem(subsection.id)}
-                                                    sx={{ color: C.muted, fontSize: '0.75rem', textTransform: 'none', px: 0, minWidth: 0, '&:hover': { color: C.aqua, bgcolor: 'transparent' } }}
-                                                    disableRipple
-                                                >
-                                                    Add item
-                                                </Button>
-                                                {removedInSub.length > 0 && (
-                                                    <Typography sx={{ color: '#555', fontSize: '0.72rem' }}>
-                                                        {removedInSub.length} hidden
-                                                        {removedInSub.map((it) => (
-                                                            <Box
-                                                                key={it.id}
-                                                                component="span"
-                                                                onClick={() => restoreBaseItem(it.id)}
-                                                                sx={{ ml: 1, color: C.muted, cursor: 'pointer', textDecoration: 'underline', '&:hover': { color: C.sand }, fontSize: '0.72rem' }}
-                                                            >
-                                                                restore &quot;{it.label}&quot;
-                                                            </Box>
-                                                        ))}
-                                                    </Typography>
-                                                )}
-                                            </Box>
-
-                                            {ssIdx < section.subsections.length - 1 && <Divider sx={{ mt: 2.5, borderColor: '#3a3a3a' }} />}
+                                {section.subsections.map((subsection, ssIdx) => (
+                                    <Box key={subsection.id} sx={{ mb: ssIdx < section.subsections.length - 1 ? 3 : 0 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                                            <TextField value={subsection.title} onChange={(e) => updateSubsectionTitle(section.id, subsection.id, e.target.value)} placeholder="Subgroup name" size="small" sx={{ ...sxGroupTitle, flex: '1 1 auto' }} />
+                                            <Tooltip title="Delete subgroup" placement="top">
+                                                <IconButton size="small" onClick={() => deleteSubsection(section.id, subsection.id)} sx={{ p: 0.5, color: '#555', '&:hover': { color: C.danger } }}>
+                                                    <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                                                </IconButton>
+                                            </Tooltip>
                                         </Box>
-                                    );
-                                })}
+
+                                        <Stack spacing={2}>
+                                            {subsection.items.map((item) => (
+                                                <ItemRow
+                                                    key={item.id}
+                                                    item={item}
+                                                    valueEntry={state.entries[item.id]}
+                                                    dueEntry={state.entries[item.id + DUE_SUFFIX]}
+                                                    options={state.options[item.id] ?? []}
+                                                    onSetLabel={(v) => updateItem(section.id, subsection.id, item.id, { label: v })}
+                                                    onSetNote={(v) => updateItem(section.id, subsection.id, item.id, { note: v })}
+                                                    onSetValue={(v) => setEntry(item.id, v)}
+                                                    onSetDue={(v) => setDueDate(item.id, v)}
+                                                    onAddOption={() => addOption(item.id)}
+                                                    onUpdateOption={(oid, l) => updateOption(item.id, oid, l)}
+                                                    onRemoveOption={(oid) => removeOption(item.id, oid)}
+                                                    onChooseOption={(l) => setEntry(item.id, l)}
+                                                    onDelete={() => deleteItem(section.id, subsection.id, item)}
+                                                />
+                                            ))}
+                                        </Stack>
+
+                                        <Button
+                                            size="small"
+                                            startIcon={<AddIcon />}
+                                            onClick={() => addItem(section.id, subsection.id)}
+                                            sx={{ color: C.muted, fontSize: '0.75rem', textTransform: 'none', px: 0, minWidth: 0, mt: 1.5, '&:hover': { color: C.aqua, bgcolor: 'transparent' } }}
+                                            disableRipple
+                                        >
+                                            Add item
+                                        </Button>
+
+                                        {ssIdx < section.subsections.length - 1 && <Divider sx={{ mt: 2.5, borderColor: '#3a3a3a' }} />}
+                                    </Box>
+                                ))}
+
+                                <Button
+                                    size="small"
+                                    startIcon={<AddIcon />}
+                                    onClick={() => addSubsection(section.id)}
+                                    sx={{ color: C.subLabel, fontSize: '0.72rem', textTransform: 'none', px: 0, minWidth: 0, mt: 2.5, '&:hover': { color: C.aqua, bgcolor: 'transparent' } }}
+                                    disableRipple
+                                >
+                                    Add subgroup
+                                </Button>
                             </AccordionDetails>
                         </Accordion>
+                        </Box>
                     );
                 })}
+
+                <Button variant="outlined" startIcon={<AddIcon />} onClick={addSection} sx={{ mt: 1, color: C.aqua, borderColor: C.aqua, borderStyle: 'dashed', textTransform: 'none', '&:hover': { borderColor: C.aqua, bgcolor: 'rgba(0,255,255,0.06)', borderStyle: 'dashed' } }}>
+                    Add group
+                </Button>
             </Box>
 
             {/* Password dialog */}
@@ -1001,9 +1194,7 @@ export default function AduCollaborator() {
                     Edit password required
                 </DialogTitle>
                 <DialogContent>
-                    <Typography sx={{ color: C.muted, fontSize: '0.82rem', mb: 2 }}>
-                        Enter the shared edit password to save changes. Anyone can view, but saving is protected.
-                    </Typography>
+                    <Typography sx={{ color: C.muted, fontSize: '0.82rem', mb: 2 }}>Enter the shared edit password to save changes. Anyone can view, but saving is protected.</Typography>
                     <TextField
                         autoFocus
                         type="password"
@@ -1017,8 +1208,12 @@ export default function AduCollaborator() {
                     />
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button onClick={() => setPwDialogOpen(false)} sx={{ color: C.muted }}>Cancel</Button>
-                    <Button onClick={submitPassword} variant="outlined" sx={{ color: C.aqua, borderColor: C.aqua }}>Unlock &amp; Save</Button>
+                    <Button onClick={() => setPwDialogOpen(false)} sx={{ color: C.muted }}>
+                        Cancel
+                    </Button>
+                    <Button onClick={submitPassword} variant="outlined" sx={{ color: C.aqua, borderColor: C.aqua }}>
+                        Unlock &amp; Save
+                    </Button>
                 </DialogActions>
             </Dialog>
 

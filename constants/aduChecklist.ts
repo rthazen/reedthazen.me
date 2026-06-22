@@ -436,3 +436,31 @@ export const aduChecklist: ChecklistSection[] = [
         ]
     }
 ];
+
+// ─── Editable-structure helpers ─────────────────────────────────────────────────
+// The checklist structure (sections/groups/items/labels/notes) is editable and
+// stored in the saved document. These build the default/legacy structure and are
+// shared by the API (server-side migration) and the component (client fallback).
+
+type LegacyCustomItem = { id: string; label: string; type?: ItemType };
+
+export function defaultStructure(): ChecklistSection[] {
+    return JSON.parse(JSON.stringify(aduChecklist));
+}
+
+// Build an editable structure from an older document that only stored selection
+// data: fold its custom items into their groups and drop any hidden built-ins.
+export function buildStructureFromLegacy(
+    customItems?: Record<string, LegacyCustomItem[]>,
+    removedItems?: string[]
+): ChecklistSection[] {
+    const removed = new Set(removedItems ?? []);
+    return defaultStructure().map((section) => ({
+        ...section,
+        subsections: section.subsections.map((sub) => {
+            const base = sub.items.filter((it) => !removed.has(it.id));
+            const extra = (customItems?.[sub.id] ?? []).map((it) => ({ id: it.id, label: it.label, type: it.type }));
+            return { ...sub, items: [...base, ...extra] };
+        })
+    }));
+}

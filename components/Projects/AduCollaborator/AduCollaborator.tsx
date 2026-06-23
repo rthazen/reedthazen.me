@@ -542,6 +542,12 @@ export default function AduCollaborator() {
     const passwordRef = useRef(password);
     const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pendingSave = useRef(false);
+    // Bumped on every local edit. A GET (initial load / poll) snapshots this
+    // before fetching and discards its response if the counter advanced while
+    // the request was in flight — otherwise a slow GET that started before an
+    // edit (and resolves after that edit has already saved + cleared the dirty
+    // flags) would clobber the just-saved change.
+    const editEpoch = useRef(0);
 
     stateRef.current = state;
     passwordRef.current = password;
@@ -559,9 +565,12 @@ export default function AduCollaborator() {
             if (pw) setPassword(pw);
         } catch {}
 
+        const epochAtFetch = editEpoch.current;
         fetch(API)
             .then((r) => (r.ok ? r.json() : Promise.reject()))
             .then((doc) => {
+                // Don't clobber an edit the user made while this load was in flight.
+                if (editEpoch.current !== epochAtFetch) return;
                 setState(normalizeDoc(doc));
                 setSaveStatus('idle');
             })
@@ -631,6 +640,7 @@ export default function AduCollaborator() {
     const scheduleSave = useCallback(() => {
         dirtyRef.current = true;
         pendingSave.current = true;
+        editEpoch.current += 1;
         if (saveTimer.current) clearTimeout(saveTimer.current);
         saveTimer.current = setTimeout(() => doSave(), SAVE_DEBOUNCE_MS);
     }, [doSave]);
@@ -639,10 +649,13 @@ export default function AduCollaborator() {
     useEffect(() => {
         const iv = setInterval(() => {
             if (dirtyRef.current || pendingSave.current) return;
+            const epochAtFetch = editEpoch.current;
             fetch(API)
                 .then((r) => (r.ok ? r.json() : Promise.reject()))
                 .then((doc) => {
-                    if (dirtyRef.current || pendingSave.current) return;
+                    // Drop the response if any edit happened while it was in flight —
+                    // it predates that edit and would wipe the just-saved change.
+                    if (dirtyRef.current || pendingSave.current || editEpoch.current !== epochAtFetch) return;
                     setState(normalizeDoc(doc));
                     if (saveStatus === 'offline') setSaveStatus('idle');
                 })

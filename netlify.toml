@@ -3,6 +3,9 @@
 
 [build.environment]
   NODE_VERSION = "22"
+  # The ADU edit password is the property address, which also appears in the
+  # design-board UI, so secret scanning flags it. Access isn't sensitive here.
+  SECRETS_SCAN_OMIT_KEYS = "ADU_EDIT_PASSWORD"
 
 # Pin the Netlify Next.js Runtime v5. v5 uses the current prerendering APIs,
 # which resolves the "legacy prerendering is being deprecated" warning.

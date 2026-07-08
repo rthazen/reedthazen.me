@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import {
     Accordion,
     AccordionSummary,
@@ -87,6 +87,10 @@ type Doc = {
     deleted: string[];
 };
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'offline';
+
+// Stable empty array so items without options keep the same `options` prop
+// reference across renders — otherwise a fresh `[]` would defeat ItemRow's memo.
+const NO_OPTIONS: OptionDef[] = [];
 
 const now = () => new Date().toISOString();
 const genId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -359,37 +363,50 @@ function LinkPreviews({ text }: { text: string }) {
 
 type ItemRowProps = {
     item: ChecklistItem;
+    sectionId: string;
+    subsectionId: string;
     valueEntry: BlameEntry | undefined;
     dueEntry: BlameEntry | undefined;
     options: OptionDef[];
-    onSetLabel: (label: string) => void;
-    onSetNote: (note: string | undefined) => void;
-    onSetValue: (value: string) => void;
-    onSetDue: (value: string) => void;
-    onAddOption: () => void;
-    onUpdateOption: (optionId: string, label: string) => void;
-    onRemoveOption: (optionId: string) => void;
-    onChooseOption: (label: string) => void;
-    onDelete: () => void;
+    setEntry: (id: string, value: string) => void;
+    setDueDate: (itemId: string, value: string) => void;
+    updateItem: (sectionId: string, subId: string, itemId: string, patch: Partial<ChecklistItem>) => void;
+    deleteItem: (sectionId: string, subId: string, item: ChecklistItem) => void;
+    addOption: (itemId: string) => void;
+    updateOption: (itemId: string, optionId: string, label: string) => void;
+    removeOption: (itemId: string, optionId: string) => void;
 };
 
-function ItemRow({
+// Memoized so a keystroke re-renders only the edited row: the parent stores all
+// data in one Doc, but the props below (stable callbacks + per-item entry refs)
+// only change for the item actually being edited.
+const ItemRow = memo(function ItemRow({
     item,
+    sectionId,
+    subsectionId,
     valueEntry,
     dueEntry,
     options,
-    onSetLabel,
-    onSetNote,
-    onSetValue,
-    onSetDue,
-    onAddOption,
-    onUpdateOption,
-    onRemoveOption,
-    onChooseOption,
-    onDelete
+    setEntry,
+    setDueDate,
+    updateItem,
+    deleteItem,
+    addOption,
+    updateOption,
+    removeOption
 }: ItemRowProps) {
     const value = valueEntry?.value ?? '';
     const nameEmpty = !item.label.trim();
+
+    const onSetLabel = (v: string) => updateItem(sectionId, subsectionId, item.id, { label: v });
+    const onSetNote = (v: string | undefined) => updateItem(sectionId, subsectionId, item.id, { note: v });
+    const onSetValue = (v: string) => setEntry(item.id, v);
+    const onSetDue = (v: string) => setDueDate(item.id, v);
+    const onAddOption = () => addOption(item.id);
+    const onUpdateOption = (oid: string, l: string) => updateOption(item.id, oid, l);
+    const onRemoveOption = (oid: string) => removeOption(item.id, oid);
+    const onChooseOption = (l: string) => setEntry(item.id, l);
+    const onDelete = () => deleteItem(sectionId, subsectionId, item);
 
     return (
         <Box className={styles.itemRow} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
@@ -519,7 +536,7 @@ function ItemRow({
             </Tooltip>
         </Box>
     );
-}
+});
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -1236,18 +1253,18 @@ export default function AduCollaborator() {
                                                 <ItemRow
                                                     key={item.id}
                                                     item={item}
+                                                    sectionId={section.id}
+                                                    subsectionId={subsection.id}
                                                     valueEntry={state.entries[item.id]}
                                                     dueEntry={state.entries[item.id + DUE_SUFFIX]}
-                                                    options={state.options[item.id] ?? []}
-                                                    onSetLabel={(v) => updateItem(section.id, subsection.id, item.id, { label: v })}
-                                                    onSetNote={(v) => updateItem(section.id, subsection.id, item.id, { note: v })}
-                                                    onSetValue={(v) => setEntry(item.id, v)}
-                                                    onSetDue={(v) => setDueDate(item.id, v)}
-                                                    onAddOption={() => addOption(item.id)}
-                                                    onUpdateOption={(oid, l) => updateOption(item.id, oid, l)}
-                                                    onRemoveOption={(oid) => removeOption(item.id, oid)}
-                                                    onChooseOption={(l) => setEntry(item.id, l)}
-                                                    onDelete={() => deleteItem(section.id, subsection.id, item)}
+                                                    options={state.options[item.id] ?? NO_OPTIONS}
+                                                    setEntry={setEntry}
+                                                    setDueDate={setDueDate}
+                                                    updateItem={updateItem}
+                                                    deleteItem={deleteItem}
+                                                    addOption={addOption}
+                                                    updateOption={updateOption}
+                                                    removeOption={removeOption}
                                                 />
                                             ))}
                                         </Stack>

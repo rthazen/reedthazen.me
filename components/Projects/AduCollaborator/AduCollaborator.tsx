@@ -51,6 +51,7 @@ import {
     buildStructureFromLegacy
 } from '../../../constants/aduChecklist';
 import { projects } from '../../../constants/projectsConst';
+import RoomBoard from './RoomBoard';
 import styles from './AduCollaborator.module.css';
 
 const CACHE_KEY = 'adu-selections-cache-v2';
@@ -536,6 +537,7 @@ export default function AduCollaborator() {
     const [overId, setOverId] = useState<string | null>(null); // drop target group
     const [overAfter, setOverAfter] = useState(false); // drop below (vs above) the target
     const [armed, setArmed] = useState<string | null>(null); // group whose drag handle is held
+    const [view, setView] = useState<'checklist' | 'board'>('checklist'); // active top-level view
 
     const dirtyRef = useRef(false);
     const stateRef = useRef(state);
@@ -977,6 +979,34 @@ export default function AduCollaborator() {
                     </Box>
                 </Box>
 
+                <ToggleButtonGroup
+                    value={view}
+                    exclusive
+                    onChange={(_, v) => v && setView(v)}
+                    size="small"
+                    sx={{
+                        mt: 2.5,
+                        '& .MuiToggleButton-root': {
+                            color: C.muted,
+                            borderColor: '#555',
+                            textTransform: 'none',
+                            fontSize: '0.8rem',
+                            px: 2,
+                            py: 0.5
+                        },
+                        '& .Mui-selected': {
+                            color: `${C.aqua} !important`,
+                            bgcolor: 'rgba(0,255,255,0.1) !important',
+                            borderColor: `${C.aqua} !important`
+                        }
+                    }}
+                >
+                    <ToggleButton value="checklist">Checklist</ToggleButton>
+                    <ToggleButton value="board">Design Board</ToggleButton>
+                </ToggleButtonGroup>
+
+                {view === 'checklist' && (
+                <>
                 <Box sx={{ mt: 2.5, mb: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.75 }}>
                         <Typography sx={{ color: C.sand, fontSize: '0.82rem' }}>Progress</Typography>
@@ -1004,8 +1034,13 @@ export default function AduCollaborator() {
                         <SaveIndicator status={saveStatus} />
                     </Box>
                 </Box>
+                </>
+                )}
             </Box>
 
+            {view === 'board' && <RoomBoard />}
+
+            {view === 'checklist' && (
             <Box className={styles.sections}>
                 {state.structure.map((section, sectionIdx) => {
                     const sectionItems = section.subsections.flatMap((ss) => ss.items).filter(counts);
@@ -1250,6 +1285,7 @@ export default function AduCollaborator() {
                     Add group
                 </Button>
             </Box>
+            )}
 
             {/* Password dialog */}
             <Dialog open={pwDialogOpen} onClose={() => setPwDialogOpen(false)} PaperProps={{ sx: { bgcolor: C.card, color: C.sand, border: `1px solid ${C.aqua}`, minWidth: 320 } }}>

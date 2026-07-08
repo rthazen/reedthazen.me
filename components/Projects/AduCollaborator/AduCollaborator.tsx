@@ -61,6 +61,7 @@ const API = '/api/adu';
 const POLL_MS = 25000;
 const SAVE_DEBOUNCE_MS = 800;
 const DUE_SUFFIX = '::due';
+const PRICE_SUFFIX = '::price';
 const EPOCH = new Date(0).toISOString();
 const TITLE = projects.find((p) => p.slug === 'adu-collaborator')?.title ?? 'ADU Client Selections';
 
@@ -78,7 +79,7 @@ const C = {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type BlameEntry = { value: string; editedBy: string; editedAt: string };
-type OptionDef = { id: string; label: string; addedBy: string; addedAt: string };
+type OptionDef = { id: string; label: string; addedBy: string; addedAt: string; priceText?: string };
 type Doc = {
     structure: ChecklistSection[];
     structureUpdatedAt: string;
@@ -91,6 +92,39 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'offline';
 // Stable empty array so items without options keep the same `options` prop
 // reference across renders — otherwise a fresh `[]` would defeat ItemRow's memo.
 const NO_OPTIONS: OptionDef[] = [];
+
+// ─── Money ──────────────────────────────────────────────────────────────────
+const moneyWhole = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+const moneyCents = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
+function parsePrice(text: string | undefined | null): number | null {
+    if (!text) return null;
+    const n = parseFloat(String(text).replace(/[^0-9.]/g, ''));
+    return Number.isFinite(n) ? n : null;
+}
+
+function formatMoney(n: number): string {
+    return Number.isInteger(n) ? moneyWhole.format(n) : moneyCents.format(n);
+}
+
+// What an item contributes to the total: the chosen option's price if one is
+// selected (else the average of its priced options); or, with no options, the
+// item's own price. `basis` explains the number for the UI. null = unpriced.
+function itemEffectivePrice(itemId: string, opts: OptionDef[], entries: Record<string, BlameEntry>): { amount: number; basis: string } | null {
+    if (opts.length > 0) {
+        const chosenLabel = (entries[itemId]?.value ?? '').trim();
+        if (chosenLabel) {
+            const chosen = opts.find((o) => o.label.trim() && o.label === chosenLabel);
+            const cp = parsePrice(chosen?.priceText);
+            if (cp != null) return { amount: cp, basis: 'selected option' };
+        }
+        const nums = opts.map((o) => parsePrice(o.priceText)).filter((n): n is number => n != null);
+        if (nums.length) return { amount: nums.reduce((a, b) => a + b, 0) / nums.length, basis: `avg of ${nums.length} option${nums.length > 1 ? 's' : ''}` };
+        return null;
+    }
+    const p = parsePrice(entries[itemId + PRICE_SUFFIX]?.value);
+    return p != null ? { amount: p, basis: 'item price' } : null;
+}
 
 const now = () => new Date().toISOString();
 const genId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -118,7 +152,9 @@ function normalizeDoc(raw: any): Doc {
 function pruneData(doc: Doc, removeIds: Set<string>): Pick<Doc, 'entries' | 'options'> {
     const entries: Record<string, BlameEntry> = {};
     for (const [k, v] of Object.entries(doc.entries)) {
-        const base = k.endsWith(DUE_SUFFIX) ? k.slice(0, -DUE_SUFFIX.length) : k;
+        let base = k;
+        if (base.endsWith(DUE_SUFFIX)) base = base.slice(0, -DUE_SUFFIX.length);
+        else if (base.endsWith(PRICE_SUFFIX)) base = base.slice(0, -PRICE_SUFFIX.length);
         if (!removeIds.has(base)) entries[k] = v;
     }
     const options: Record<string, OptionDef[]> = {};
@@ -249,7 +285,7 @@ function SaveIndicator({ status }: { status: SaveStatus }) {
 
 // ─── Link previews ────────────────────────────────────────────────────────────
 
-type LinkPreviewData = { url: string; image?: string; title?: string; description?: string; siteName?: string; error?: string };
+type LinkPreviewData = { url: string; image?: string; title?: string; description?: string; siteName?: string; price?: string; currency?: string; error?: string };
 
 const URL_RE = /https?:\/\/[^\s)]+/gi;
 const fetcher = (u: string) => fetch(u).then((r) => r.json());
@@ -277,11 +313,20 @@ function extractUrls(text: string): string[] {
     return out;
 }
 
-function LinkPreview({ url }: { url: string }) {
+function LinkPreview({ url, onPrice }: { url: string; onPrice?: (price: string) => void }) {
     const { data, isValidating } = useSWR<LinkPreviewData>(`/api/link-preview?url=${encodeURIComponent(url)}`, fetcher, {
         revalidateOnFocus: false,
         dedupingInterval: 1000 * 60 * 60
     });
+
+    // Silent auto-fill: when a price is scraped, hand it up. The parent decides
+    // whether to apply it (only into an empty field), so this is idempotent.
+    const price = data?.price;
+    useEffect(() => {
+        if (price && onPrice) onPrice(price);
+        // onPrice intentionally omitted: fire once per scraped price, not per render.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [price]);
 
     const host = (() => {
         try {
@@ -346,14 +391,14 @@ function LinkPreview({ url }: { url: string }) {
     );
 }
 
-function LinkPreviews({ text }: { text: string }) {
+function LinkPreviews({ text, onPrice }: { text: string; onPrice?: (price: string) => void }) {
     const debounced = useDebounced(text, 600);
     const urls = extractUrls(debounced);
     if (urls.length === 0) return null;
     return (
         <Box>
             {urls.map((u) => (
-                <LinkPreview key={u} url={u} />
+                <LinkPreview key={u} url={u} onPrice={onPrice} />
             ))}
         </Box>
     );
@@ -367,15 +412,38 @@ type ItemRowProps = {
     subsectionId: string;
     valueEntry: BlameEntry | undefined;
     dueEntry: BlameEntry | undefined;
+    priceEntry: BlameEntry | undefined;
     options: OptionDef[];
+    canEdit: boolean;
     setEntry: (id: string, value: string) => void;
     setDueDate: (itemId: string, value: string) => void;
     updateItem: (sectionId: string, subId: string, itemId: string, patch: Partial<ChecklistItem>) => void;
     deleteItem: (sectionId: string, subId: string, item: ChecklistItem) => void;
     addOption: (itemId: string) => void;
     updateOption: (itemId: string, optionId: string, label: string) => void;
+    updateOptionPrice: (itemId: string, optionId: string, priceText: string) => void;
     removeOption: (itemId: string, optionId: string) => void;
 };
+
+function PriceInput({ value, onChange, width = 110 }: { value: string; onChange: (v: string) => void; width?: number }) {
+    return (
+        <TextField
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="$0"
+            size="small"
+            inputMode="decimal"
+            sx={{
+                width,
+                '& .MuiInputBase-input': { color: C.sand, fontSize: '0.8rem', py: 0.5 },
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: '#555' },
+                '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': { borderColor: C.aqua },
+                '& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: C.aqua },
+                '& .MuiInputBase-input::placeholder': { color: '#666', opacity: 1 }
+            }}
+        />
+    );
+}
 
 // Memoized so a keystroke re-renders only the edited row: the parent stores all
 // data in one Doc, but the props below (stable callbacks + per-item entry refs)
@@ -386,27 +454,44 @@ const ItemRow = memo(function ItemRow({
     subsectionId,
     valueEntry,
     dueEntry,
+    priceEntry,
     options,
+    canEdit,
     setEntry,
     setDueDate,
     updateItem,
     deleteItem,
     addOption,
     updateOption,
+    updateOptionPrice,
     removeOption
 }: ItemRowProps) {
     const value = valueEntry?.value ?? '';
     const nameEmpty = !item.label.trim();
+    const priceText = priceEntry?.value ?? '';
 
     const onSetLabel = (v: string) => updateItem(sectionId, subsectionId, item.id, { label: v });
     const onSetNote = (v: string | undefined) => updateItem(sectionId, subsectionId, item.id, { note: v });
     const onSetValue = (v: string) => setEntry(item.id, v);
     const onSetDue = (v: string) => setDueDate(item.id, v);
+    const onSetItemPrice = (v: string) => setEntry(item.id + PRICE_SUFFIX, v);
     const onAddOption = () => addOption(item.id);
     const onUpdateOption = (oid: string, l: string) => updateOption(item.id, oid, l);
+    const onUpdateOptionPrice = (oid: string, v: string) => updateOptionPrice(item.id, oid, v);
     const onRemoveOption = (oid: string) => removeOption(item.id, oid);
     const onChooseOption = (l: string) => setEntry(item.id, l);
     const onDelete = () => deleteItem(sectionId, subsectionId, item);
+
+    const hasOptions = options.length > 0;
+    const effective = itemEffectivePrice(item.id, options, {
+        [item.id]: valueEntry as BlameEntry,
+        [item.id + PRICE_SUFFIX]: priceEntry as BlameEntry
+    });
+
+    // Silent auto-fill only for editors, and only into an empty field.
+    const autoFillItemPrice = (p: string) => {
+        if (canEdit && !hasOptions && parsePrice(priceText) == null) onSetItemPrice(p);
+    };
 
     return (
         <Box className={styles.itemRow} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
@@ -460,7 +545,15 @@ const ItemRow = memo(function ItemRow({
                     <TextField value={value} onChange={(e) => onSetValue(e.target.value)} placeholder="Your selection..." size="small" multiline maxRows={3} fullWidth sx={sxTextField} />
                 )}
                 <BlameChip entry={valueEntry} />
-                {item.type !== 'yes_no' && <LinkPreviews text={value} />}
+                {item.type !== 'yes_no' && <LinkPreviews text={value} onPrice={autoFillItemPrice} />}
+
+                {/* Item price — only when there are no options (options carry their own price) */}
+                {!hasOptions && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+                        <Typography sx={{ color: C.muted, fontSize: '0.72rem' }}>Price</Typography>
+                        <PriceInput value={priceText} onChange={onSetItemPrice} />
+                    </Box>
+                )}
 
                 {options.length > 0 && (
                     <Box sx={{ mt: 1.25 }}>
@@ -483,11 +576,19 @@ const ItemRow = memo(function ItemRow({
                                             </span>
                                         </Tooltip>
                                         <Box sx={{ flex: 1, minWidth: 0 }}>
-                                            <TextField value={o.label} onChange={(e) => onUpdateOption(o.id, e.target.value)} placeholder="Option…" size="small" fullWidth sx={sxLabelField} />
+                                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.75 }}>
+                                                <TextField value={o.label} onChange={(e) => onUpdateOption(o.id, e.target.value)} placeholder="Option…" size="small" fullWidth sx={sxLabelField} />
+                                                <PriceInput value={o.priceText ?? ''} onChange={(v) => onUpdateOptionPrice(o.id, v)} width={92} />
+                                            </Box>
                                             <Typography sx={{ color: '#6b7280', fontSize: '0.66rem', mt: 0.2, lineHeight: 1.2 }}>
                                                 added by {o.addedBy} &middot; {relativeTime(o.addedAt)}
                                             </Typography>
-                                            <LinkPreviews text={o.label} />
+                                            <LinkPreviews
+                                                text={o.label}
+                                                onPrice={(p) => {
+                                                    if (canEdit && parsePrice(o.priceText) == null) onUpdateOptionPrice(o.id, p);
+                                                }}
+                                            />
                                         </Box>
                                         <Tooltip title="Remove option" placement="top">
                                             <IconButton size="small" onClick={() => onRemoveOption(o.id)} sx={{ p: 0.5, mt: 0.25, color: '#555', '&:hover': { color: C.danger } }}>
@@ -499,6 +600,16 @@ const ItemRow = memo(function ItemRow({
                             })}
                         </Stack>
                     </Box>
+                )}
+
+                {effective && (
+                    <Typography sx={{ color: C.aqua, fontSize: '0.72rem', mt: 1, fontWeight: 600 }}>
+                        Adds {formatMoney(effective.amount)} to total
+                        <Box component="span" sx={{ color: C.muted, fontWeight: 400 }}>
+                            {' '}
+                            &middot; {effective.basis}
+                        </Box>
+                    </Typography>
                 )}
 
                 <Button
@@ -718,6 +829,18 @@ export default function AduCollaborator() {
             scheduleSave();
         },
         [who, scheduleSave]
+    );
+
+    const updateOptionPrice = useCallback(
+        (itemId: string, optionId: string, priceText: string) => {
+            setState((prev) => {
+                const opts = prev.options[itemId] ?? [];
+                const nextOpts = opts.map((o) => (o.id === optionId ? { ...o, priceText } : o));
+                return { ...prev, options: { ...prev.options, [itemId]: nextOpts } };
+            });
+            scheduleSave();
+        },
+        [scheduleSave]
     );
 
     const removeOption = useCallback(
@@ -940,6 +1063,18 @@ export default function AduCollaborator() {
     const filledItems = allItems.filter((it) => (state.entries[it.id]?.value ?? '').trim()).length;
     const progress = totalItems > 0 ? (filledItems / totalItems) * 100 : 0;
 
+    // ── Estimated cost: sum each item's effective price (chosen option, else the
+    // option average, else the item's own price). Unpriced items contribute $0. ──
+    let totalCost = 0;
+    let pricedCount = 0;
+    for (const it of allItems) {
+        const eff = itemEffectivePrice(it.id, state.options[it.id] ?? NO_OPTIONS, state.entries);
+        if (eff) {
+            totalCost += eff.amount;
+            pricedCount += 1;
+        }
+    }
+
     const copyLink = async () => {
         const url = `${window.location.origin}${window.location.pathname}`;
         try {
@@ -1032,6 +1167,29 @@ export default function AduCollaborator() {
                         </Typography>
                     </Box>
                     <LinearProgress variant="determinate" value={progress} sx={{ height: 7, borderRadius: 4, bgcolor: '#4a4a4a', '& .MuiLinearProgress-bar': { bgcolor: C.aqua, borderRadius: 4 } }} />
+                </Box>
+
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'baseline',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: 1,
+                        mb: 2,
+                        p: 1.5,
+                        borderRadius: 2,
+                        border: `1px solid ${C.cardBorder}`,
+                        bgcolor: 'rgba(0,255,255,0.04)'
+                    }}
+                >
+                    <Box>
+                        <Typography sx={{ color: C.muted, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Estimated total</Typography>
+                        <Typography sx={{ color: C.aqua, fontSize: '1.5rem', fontWeight: 700, lineHeight: 1.2 }}>{formatMoney(totalCost)}</Typography>
+                    </Box>
+                    <Typography sx={{ color: C.muted, fontSize: '0.75rem' }}>
+                        {pricedCount > 0 ? `across ${pricedCount} priced item${pricedCount > 1 ? 's' : ''}` : 'add prices to items to see a total'}
+                    </Typography>
                 </Box>
 
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
@@ -1257,13 +1415,16 @@ export default function AduCollaborator() {
                                                     subsectionId={subsection.id}
                                                     valueEntry={state.entries[item.id]}
                                                     dueEntry={state.entries[item.id + DUE_SUFFIX]}
+                                                    priceEntry={state.entries[item.id + PRICE_SUFFIX]}
                                                     options={state.options[item.id] ?? NO_OPTIONS}
+                                                    canEdit={!!password}
                                                     setEntry={setEntry}
                                                     setDueDate={setDueDate}
                                                     updateItem={updateItem}
                                                     deleteItem={deleteItem}
                                                     addOption={addOption}
                                                     updateOption={updateOption}
+                                                    updateOptionPrice={updateOptionPrice}
                                                     removeOption={removeOption}
                                                 />
                                             ))}

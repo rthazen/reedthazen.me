@@ -12,6 +12,8 @@ type Preview = {
     title?: string;
     description?: string;
     siteName?: string;
+    price?: string; // normalized numeric amount, e.g. "1299.00" (best-effort)
+    currency?: string;
     error?: string;
 };
 
@@ -94,6 +96,71 @@ function metaContent(html: string, key: string): string | undefined {
     return undefined;
 }
 
+function metaItemprop(html: string, key: string): string | undefined {
+    const patterns = [
+        new RegExp(`<meta[^>]+itemprop=["']${key}["'][^>]*?content=["']([^"']*)["']`, 'i'),
+        new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]*?itemprop=["']${key}["']`, 'i')
+    ];
+    for (const re of patterns) {
+        const m = html.match(re);
+        if (m && m[1]) return decodeEntities(m[1].trim());
+    }
+    return undefined;
+}
+
+// Walk a parsed JSON-LD node looking for an Offer/Product price. Prefers an
+// explicit `offers.price` but falls back to any `price`/`lowPrice` field.
+function findJsonLdPrice(node: any): string | undefined {
+    if (!node || typeof node !== 'object') return undefined;
+    if (Array.isArray(node)) {
+        for (const n of node) {
+            const p = findJsonLdPrice(n);
+            if (p) return p;
+        }
+        return undefined;
+    }
+    if (node.offers) {
+        const p = findJsonLdPrice(node.offers);
+        if (p) return p;
+    }
+    if (node.price != null) return String(node.price);
+    if (node.lowPrice != null) return String(node.lowPrice);
+    for (const k of Object.keys(node)) {
+        if (k === 'offers') continue;
+        const v = node[k];
+        if (v && typeof v === 'object') {
+            const p = findJsonLdPrice(v);
+            if (p) return p;
+        }
+    }
+    return undefined;
+}
+
+function jsonLdPrice(html: string): string | undefined {
+    const blocks = html.match(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi) ?? [];
+    for (const block of blocks) {
+        const jsonText = block.replace(/^<script[^>]*>/i, '').replace(/<\/script>\s*$/i, '').trim();
+        try {
+            const p = findJsonLdPrice(JSON.parse(jsonText));
+            if (p) return p;
+        } catch {
+            /* ignore malformed JSON-LD */
+        }
+    }
+    return undefined;
+}
+
+// Best-effort price scrape. Reliable only when the site exposes it in <head>
+// (og/product price meta, itemprop, or JSON-LD). Many retailers do not.
+function extractPrice(html: string): { price?: string; currency?: string } {
+    const raw = metaContent(html, 'product:price:amount') || metaContent(html, 'og:price:amount') || metaItemprop(html, 'price') || jsonLdPrice(html);
+    const currency = metaContent(html, 'product:price:currency') || metaContent(html, 'og:price:currency') || metaItemprop(html, 'priceCurrency');
+    let price = raw ? raw.replace(/[^0-9.]/g, '') : '';
+    // Guard against garbage like multiple dots.
+    if (price && !Number.isFinite(parseFloat(price))) price = '';
+    return { price: price || undefined, currency: currency || undefined };
+}
+
 function parseMeta(html: string, u: URL): Preview {
     const rawImage = metaContent(html, 'og:image') || metaContent(html, 'twitter:image') || metaContent(html, 'twitter:image:src');
     const title = metaContent(html, 'og:title') || decodeEntities((html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] ?? '').trim());
@@ -108,12 +175,15 @@ function parseMeta(html: string, u: URL): Preview {
             image = undefined;
         }
     }
+    const { price, currency } = extractPrice(html);
     return {
         url: u.toString(),
         image,
         title: title || undefined,
         description: description || undefined,
-        siteName
+        siteName,
+        price,
+        currency
     };
 }
 
